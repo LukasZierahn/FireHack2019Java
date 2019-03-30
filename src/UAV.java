@@ -87,17 +87,8 @@ public class UAV {
     }
 
     public void InitRefuelMission() {
-        Location3D closest = null;
-        double minDist = Double.MAX_VALUE;
-        for(Location3D pos : refuelPoints) {
-            double dist = FireZoneController.distance(airVehicleState.getLocation(), pos);
-            if(dist < minDist) {
-                minDist = dist;
-                closest = pos;
-            }
-        }
         
-        if(closest == null) return;
+        Location3D closest = ClosestRefuelStation();
 
         List<Waypoint> targets = new ArrayList<Waypoint>();
         long wpID = main.getNextWaypointID();
@@ -107,12 +98,25 @@ public class UAV {
         MoveToWayPoint(targets, wpID);
     }
     
+    private Location3D ClosestRefuelStation(){
+        Location3D closest = null;
+        double minDist = Double.MAX_VALUE;
+        for(Location3D pos : refuelPoints) {
+            double dist = FireZoneController.distance(airVehicleState.getLocation(), pos);
+            if(dist < minDist) {
+                minDist = dist;
+                closest = pos;
+            }
+        }
+        return closest;
+    }
+    
     /**
      * Updates the aircraft fuel state with the current AirVehicleState
      * @return True if the aircraft needs refuel, false otherwise
      */
     public boolean UpdateFuel() {
-        fuelState.Update(airVehicleState);
+        fuelState.Update(airVehicleState, this, ClosestRefuelStation());
         return fuelState.requiresRefuel;
     }
 
