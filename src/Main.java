@@ -11,6 +11,7 @@
 
 import afrl.cmasi.*;
 import afrl.cmasi.searchai.HazardZoneDetection;
+import afrl.cmasi.searchai.RecoveryPoint;
 import avtas.lmcp.LMCPFactory;
 import avtas.lmcp.LMCPObject;
 import java.io.IOException;
@@ -126,6 +127,13 @@ public class Main extends Thread {
                 hazardZones.add(new FireZoneController(this, detectedLocation, UAVS));
             } else {
                 UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController.HandleHazardZoneDetection(msg);
+            }
+        }
+        else if (o instanceof RecoveryPoint) {
+            RecoveryPoint recoveryPoint = (RecoveryPoint)o;
+            Location3D center = ((Circle)recoveryPoint.getBoundary()).getCenterPoint();
+            for (UAV uav : UAVMap.values()) {
+                uav.refuelPoints.add(center);
             }
         }
         else {

@@ -1,4 +1,5 @@
 import afrl.cmasi.*;
+import java.util.ArrayList;
 
 
 public class UAV {
@@ -16,6 +17,9 @@ public class UAV {
     public boolean fixedWing;
     protected float targetSpeed;
     protected float targetHeight = 700;
+    
+    protected FuelState fuelState;
+    protected ArrayList<Location3D> refuelPoints = new ArrayList<Location3D>();
 
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
         this.main = main;
@@ -42,6 +46,23 @@ public class UAV {
     }
 
     public void Update() {
+        if(UpdateFuel()) {
+            if(refuelPoints.isEmpty()) {
+                System.out.println("WARNING - Drone needs fuel but has no refuel position");
+            } else {
+                if(currentTask != UAVTASKS.REFUEL) return;
+                currentTask = UAVTASKS.REFUEL;
+                InitRefuelMission();
+            }
+        } else {
+            if(currentTask == UAVTASKS.REFUEL) {
+                currentTask = null;
+            }
+        }
+        
+        //Add initial position as refuel point
+        if(refuelPoints.isEmpty()) refuelPoints.add(airVehicleState.getLocation());
+        
         if (currentTask == UAVTASKS.FOLLOW_EDGE_CLOCKWISE || currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
             UpdateFollow();
         } else if (currentTask == UAVTASKS.FLYTHROUGH) {
@@ -50,6 +71,41 @@ public class UAV {
                 //TODO:Ask the fire zone controller to give us a new job
             }
         }
+    }
+    
+    public void InitRefuelMission() {
+        Location3D closest = null;
+        double minDist = Double.MAX_VALUE;
+        for(Location3D pos : refuelPoints) {
+            double dist = FireZoneController.distance(airVehicleState.getLocation(), pos);
+            if(dist < minDist) {
+                minDist = dist;
+                closest = pos;
+            }
+        }
+        Waypoint refuelWaypoint = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, 1, targetSpeed, TurnType.TurnShort);
+        LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
+        LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 1000, targetSpeed, closest);
+        MissionCommand o = new MissionCommand();
+        o.setVehicleID(airVehicleState.getID());
+        o.setCommandID(main.getNextCommandID());
+        o.getWaypointList().add(refuelWaypoint);
+        o.getVehicleActionList().add(loiterAction);
+        
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Updates the aircraft fuel state with the current AirVehicleState
+     * @return True if the aircraft needs refuel, false otherwise
+     */
+    public boolean UpdateFuel() {
+        fuelState.Update(airVehicleState);
+        return fuelState.requiresRefuel;
     }
 
     public void UpdateFollow() {
@@ -142,16 +198,7 @@ public class UAV {
 
         ResetCamera();
 
-        Waypoint waypoint1 = new Waypoint();
-        waypoint1.setLatitude(target.getLatitude());
-        waypoint1.setLongitude(target.getLongitude());
-        waypoint1.setAltitude(targetHeight);
-        waypoint1.setAltitudeType(AltitudeType.MSL);
-        //Setting unique ID for the waypoint
-        waypoint1.setNumber(1);
-        //Setting speed to reach the waypoint
-        waypoint1.setSpeed(targetSpeed);
-        waypoint1.setTurnType(TurnType.TurnShort);
+        Waypoint waypoint1 = CreateWaypoint(target.getLatitude(), target.getLongitude(), targetHeight, AltitudeType.MSL, 1, targetSpeed, TurnType.TurnShort);
 
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
@@ -163,6 +210,35 @@ public class UAV {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    
+    private Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, int number, float speed, TurnType turnType) {
+        Waypoint waypoint1 = new Waypoint();
+        waypoint1.setLatitude(lat);
+        waypoint1.setLongitude(lon);
+        waypoint1.setAltitude(altitude);
+        waypoint1.setAltitudeType(altType);
+        //Setting unique ID for the waypoint
+        waypoint1.setNumber(number);
+        //Setting speed to reach the waypoint
+        waypoint1.setSpeed(speed);
+        waypoint1.setTurnType(turnType);
+        return waypoint1;
+    }
+    
+    private LoiterAction CreateLoiter(LoiterType loiterType, float radius, float axis, int length, LoiterDirection direction, long duration, float speed, Location3D location){
+        //Setting up the loiter action
+         LoiterAction loiterAction = new LoiterAction();
+         loiterAction.setLoiterType(loiterType);
+         loiterAction.setRadius(radius);
+         loiterAction.setAxis(axis);
+         loiterAction.setLength(length);
+         loiterAction.setDirection(direction);
+         loiterAction.setDuration(duration);
+         loiterAction.setAirspeed(speed);
+         //Creating a 3D location object for the stare point
+         loiterAction.setLocation(location);
+         return loiterAction;
     }
 
     public void FollowEdge(Boolean clockwise) {

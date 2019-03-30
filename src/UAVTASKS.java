@@ -2,7 +2,8 @@ public enum UAVTASKS {
     NO_TASK (0),
     FOLLOW_EDGE_CLOCKWISE (1),
     FOLLOW_EDGE_COUNTER_CLOCKWISE (2),
-    FLYTHROUGH(3);
+    FLYTHROUGH(3),
+    REFUEL(4);
 
     private final int val;
 
