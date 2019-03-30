@@ -106,9 +106,9 @@ public class UAV {
         long wpID = main.getNextWaypointID();
         Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
         targets.add(wp);
-//        MoveToWayPoint(targets, wpID);
-//        LoiterAtPoint(wp, closest);
-LoiterHere();
+        MoveToWayPoint(targets, wpID);
+        //LoiterAtPoint(wp, closest);
+        //LoiterHere();
     }
     
     /**
@@ -193,7 +193,7 @@ LoiterHere();
         }
     }
 
-    private Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
+    public Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
         Waypoint waypoint1 = new Waypoint();
         waypoint1.setLatitude(lat);
         waypoint1.setLongitude(lon);
@@ -223,6 +223,9 @@ LoiterHere();
     }
 
     public void FollowEdge(Boolean clockwise) {
+
+        System.out.println(airVehicleState.getID());
+
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());

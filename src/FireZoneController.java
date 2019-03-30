@@ -39,7 +39,7 @@ public class FireZoneController {
                 UAVMap.put(ID, main.getUAV(ID));
                 main.getUAV(ID).fireZoneController = this;
 
-                ChaseFire(main.getUAV(ID));
+                main.getUAV(ID).FollowEdge(true);
                 hasQuad = true;
                 break;
             }
@@ -68,13 +68,7 @@ public class FireZoneController {
         uav.currentTask = UAVTASKS.CHASING_FIRE;
 
         List<Waypoint> target = new ArrayList<>();
-        target.add(new Waypoint());
-        target.get(0).setNumber(main.getNextWaypointID());
-        target.get(0).setLatitude(estimatedHazardZone.get(0).getLatitude());
-        target.get(0).setLongitude(estimatedHazardZone.get(0).getLongitude());
-        target.get(0).setAltitude(700);
-
-        target.get(0).setNextWaypoint(target.get(0).getNumber());
+        target.add(uav.CreateWaypoint(estimatedHazardZone.get(0).getLatitude(), estimatedHazardZone.get(0).getLongitude(),  700, AltitudeType.MSL, main.getNextWaypointID(),  30, TurnType.FlyOver));
 
         uav.MoveToWayPoint(target.get(0));
     }
@@ -82,6 +76,8 @@ public class FireZoneController {
 
     public void HandleHazardZoneDetection(HazardZoneDetection msg) {
         UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
+
+        System.out.println(msg.getDetectingEnitiyID());
 
         if (uav.fixedWing) {
             if (!uav.HasSeenFire()) {
