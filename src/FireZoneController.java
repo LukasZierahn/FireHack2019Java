@@ -243,7 +243,6 @@ public class FireZoneController {
         target.RemoveHazardZone();
 
         main.getHazardZones().remove(target);
-        System.out.println(main.getHazardZones().size());
     }
 
     public void AddHazardZonePoint(Location3D point, boolean inFront) {
