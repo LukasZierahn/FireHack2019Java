@@ -39,8 +39,9 @@ public class FireZoneController {
                 UAVMap.put(ID, main.getUAV(ID));
                 main.getUAV(ID).fireZoneController = this;
 
-                SetDroneToHuntFire(main.getUAV(ID));
+                main.getUAV(ID).FollowEdge(true);
                 hasQuad = true;
+                break;
             }
         }
 
@@ -48,11 +49,12 @@ public class FireZoneController {
 
         if (!hasQuad) {
             for (UAV uav : main.getUAVMap().values()) {
-                if (!uav.fixedWing && uav.fireZoneController == null && (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
+                if ((!uav.fixedWing) && uav.fireZoneController == null && (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
                     hasQuad = true;
                     committedUAVS.add(uav.airVehicleState.getID());
                     uav.fireZoneController = this;
-                    SetDroneToHuntFire(uav);
+                    ChaseFire(uav);
+                    break;
                 }
             }
         }
@@ -62,37 +64,33 @@ public class FireZoneController {
         zoneID = zoneIDCounter;
     }
 
-    public void SetDroneToHuntFire(UAV uav) {
-        uav.currentTask = UAVTASKS.HUNTING_FIRE;
+    public void ChaseFire(UAV uav) {
+        uav.currentTask = UAVTASKS.CHASING_FIRE;
 
         List<Waypoint> target = new ArrayList<>();
-        target.add(new Waypoint());
-        target.get(0).setNumber(main.getNextWaypointID());
-        target.get(0).setLatitude(estimatedHazardZone.get(0).getLatitude());
-        target.get(0).setLongitude(estimatedHazardZone.get(0).getLongitude());
-        target.get(0).setAltitude(700);
+        target.add(uav.CreateWaypoint(estimatedHazardZone.get(0).getLatitude(), estimatedHazardZone.get(0).getLongitude(),  700, AltitudeType.MSL, main.getNextWaypointID(),  30, TurnType.FlyOver));
 
-        uav.MoveToWayPoint(target, target.get(0).getNumber());
+        uav.MoveToWayPoint(target.get(0));
     }
 
 
     public void HandleHazardZoneDetection(HazardZoneDetection msg) {
         UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
 
+        System.out.println(msg.getDetectingEnitiyID());
+
         if (uav.fixedWing) {
-            if (!uav.sawFire) {
+            if (!uav.HasSeenFire()) {
                 AddHazardZonePoint(msg.getDetectedLocation());
             }
         } else {
             AddHazardZonePoint(msg.getDetectedLocation());
             SendInHazardZone();
 
-            if (uav.currentTask == UAVTASKS.HUNTING_FIRE) {
+            if (uav.currentTask == UAVTASKS.CHASING_FIRE) {
                 uav.FollowEdge(true);
             }
         }
-
-        UAVMap.get(msg.getDetectingEnitiyID()).SawFire();
     }
 
     public boolean CheckAndMerge(FireZoneController target) {
@@ -278,6 +276,29 @@ public class FireZoneController {
         hazardZoneTimes.add(main.getTime());
         center = null;
         averageDistance = -1;
+    }
+    public void AddHazardZonePoint(Location3D point, boolean inFront) {
+
+        if (inFront) {
+            List<Location3D> bufferHazard = new ArrayList<>();
+            List<Long> bufferTime = new ArrayList<>();
+
+            bufferHazard.add(point);
+            bufferTime.add(main.getTime());
+
+            bufferHazard.addAll(estimatedHazardZone);
+            estimatedHazardZone = bufferHazard;
+            bufferTime.addAll(hazardZoneTimes);
+            hazardZoneTimes = bufferTime;
+
+        } else {
+            estimatedHazardZone.add(point);
+            hazardZoneTimes.add(main.getTime());
+        }
+        center = null;
+        averageDistance = -1;
+
+        System.out.println(estimatedHazardZone.toString());
     }
 
     public static double distance(Location3D location1, Location3D location2) {

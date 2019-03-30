@@ -87,7 +87,13 @@ public class FireMap {
 
     public void getTask(UAV uav) {
         if (uav.fixedWing) {
-            uav.MoveToWayPoint(route, route.get(uav.nr).getNumber());
+            if (uav.nr == 0) {
+                uav.MoveToWayPoint(route, route.get(1).getNumber());
+            } else if (uav.nr == 1) {
+                uav.MoveToWayPoint(route, route.get(3).getNumber());
+            } else {
+                uav.InitRefuelMission();
+            }
         } else {
             uav.currentTask = UAVTASKS.STANDBY;
             uav.standbyPoint = center;

@@ -11,8 +11,7 @@ public class UAV {
 
     public FireZoneController fireZoneController = null;
     public UAVTASKS currentTask = UAVTASKS.NO_TASK;
-    protected boolean sawFire = false;
-    protected long lastSwitch = 0;
+    protected long lastSeenFire = 0;
     public Location3D standbyPoint;
 
     protected Main main;
@@ -38,7 +37,7 @@ public class UAV {
                 fixedWing = false;
                 nr = main.fixedWings;
                 main.fixedWings++;
-                targetSpeed = 20;
+                targetSpeed = 25;
                 break;
             case "FixedWing":
                 fixedWing = true;
@@ -74,10 +73,14 @@ public class UAV {
         
         if (currentTask == UAVTASKS.FOLLOW_EDGE_CLOCKWISE || currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
             UpdateFollow();
+
         } else if (currentTask == UAVTASKS.FLYTHROUGH) {
-            if (!sawFire) {
+            if (!HasSeenFire()) {
                 currentTask = UAVTASKS.NO_TASK;
+                fireZoneController.AddHazardZonePoint(airVehicleState.getLocation(), true);
+                fireZoneController = null;
                 //TODO:Ask the fire zone controller to give us a new job
+
             }
         } else if (currentTask == UAVTASKS.NO_TASK) {
             if (fireZoneController == null) {
@@ -87,18 +90,6 @@ public class UAV {
     }
 
     public void InitRefuelMission() {
-        
-        Location3D closest = ClosestRefuelStation();
-
-        List<Waypoint> targets = new ArrayList<Waypoint>();
-        long wpID = main.getNextWaypointID();
-        Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
-        targets.add(wp);
-        
-        MoveToWayPoint(targets, wpID);
-    }
-    
-    private Location3D ClosestRefuelStation(){
         Location3D closest = null;
         double minDist = Double.MAX_VALUE;
         for(Location3D pos : refuelPoints) {
@@ -108,7 +99,18 @@ public class UAV {
                 closest = pos;
             }
         }
-        return closest;
+
+        if(closest == null) return;
+
+        List<Waypoint> targets = new ArrayList<Waypoint>();
+        long wpID = main.getNextWaypointID();
+        Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
+        targets.add(wp);
+        MoveToWayPoint(targets, wpID);
+        //LoiterAtPoint(wp, closest);
+        //LoiterHere();
+
+        MoveToWayPoint(targets, wpID);
     }
     
     /**
@@ -116,7 +118,7 @@ public class UAV {
      * @return True if the aircraft needs refuel, false otherwise
      */
     public boolean UpdateFuel() {
-        fuelState.Update(airVehicleState, this, ClosestRefuelStation());
+        fuelState.Update(airVehicleState);
         return fuelState.requiresRefuel;
     }
 
@@ -130,7 +132,7 @@ public class UAV {
             e.printStackTrace();
         }
     }
-    
+
     public MissionCommand WrapInMission(List<Waypoint> route, long startID) {
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
@@ -145,30 +147,30 @@ public class UAV {
         routeWrapper.add(route);
         MoveToWayPoint(routeWrapper, route.getNumber());
     }
-        
+
     public void LoiterHere() {
         LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
         LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 35000, targetSpeed, airVehicleState.getLocation());
         VehicleActionCommand vehAction = new VehicleActionCommand(main.getNextCommandID(), airVehicleState.getID(), CommandStatusType.Pending);
         vehAction.getVehicleActionList().add(loiterAction);
-        
+
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(vehAction, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    
+
     public void LoiterAtPoint(Waypoint route, Location3D loiterPoint) {
         LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
         LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 35000, targetSpeed, loiterPoint);
-        
+
         List<Waypoint> routeWrapper = new ArrayList<Waypoint>();
         routeWrapper.add(route);
-        
+
         MissionCommand mission = WrapInMission(routeWrapper, route.getNumber());
         mission.getVehicleActionList().add(loiterAction);
-        
+
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(mission, true));
         } catch (Exception e) {
@@ -193,7 +195,7 @@ public class UAV {
         }
     }
 
-    private Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
+    public Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
         Waypoint waypoint1 = new Waypoint();
         waypoint1.setLatitude(lat);
         waypoint1.setLongitude(lon);
@@ -302,7 +304,7 @@ public class UAV {
             final float inFire = 12;
             final float notInFire = 5;
 
-            if (sawFire) {
+            if (HasSeenFire()) {
                 if (clockwise) {
                     msg.setHeading(airVehicleState.getHeading() - inFire);
                 } else {
@@ -321,7 +323,7 @@ public class UAV {
             final float flatMove = 5;
             final float scale = (((GimbalState) airVehicleState.getPayloadStateList().get(0)).getAzimuth() - 45) / 45.0f;
 
-            if (sawFire) {
+            if (HasSeenFire()) {
                 if (clockwise) {
                     msg.setHeading(airVehicleState.getHeading() + flatMove * scale);
                 } else {
@@ -346,18 +348,14 @@ public class UAV {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
-
-        sawFire = false;
-
     }
 
 
     public void SawFire() {
-        if (!sawFire) {
-            lastSwitch = main.getTime();
-        }
-        sawFire = true;
+        lastSeenFire = main.getTime();
+    }
+
+    public boolean HasSeenFire() {
+        return main.getTime() - lastSeenFire < 2000;
     }
 }

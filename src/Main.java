@@ -122,14 +122,25 @@ public class Main extends Thread {
             HazardZoneDetection msg = ((HazardZoneDetection) o);
             Location3D detectedLocation = msg.getDetectedLocation();
 
-            if (UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController == null) {
-                List<Long> UAVS = new ArrayList<>();
-                UAVS.add(msg.getDetectingEnitiyID());
+            UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
 
-                hazardZones.add(new FireZoneController(this, detectedLocation, UAVS));
-            } else {
-                UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController.HandleHazardZoneDetection(msg);
+            if (!uav.fixedWing || (uav.fixedWing && !uav.HasSeenFire() && uav.currentTask != UAVTASKS.FLYTHROUGH)) {
+                if (uav.fireZoneController == null) {
+
+                    List<Long> UAVS = new ArrayList<>();
+                    UAVS.add(msg.getDetectingEnitiyID());
+
+                    hazardZones.add(new FireZoneController(this, detectedLocation, UAVS));
+                    if (uav.fixedWing) {
+                        uav.currentTask = UAVTASKS.FLYTHROUGH;
+                        uav.fireZoneController = hazardZones.get(hazardZones.size() - 1);
+                    }
+                } else {
+                    uav.fireZoneController.HandleHazardZoneDetection(msg);
+                }
             }
+
+            uav.SawFire();
         }
         else if (o instanceof RecoveryPoint) {
             RecoveryPoint recoveryPoint = (RecoveryPoint)o;
