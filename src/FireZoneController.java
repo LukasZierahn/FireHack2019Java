@@ -32,16 +32,21 @@ public class FireZoneController {
 
         AddHazardZonePoint(firstContact);
 
+        boolean hasQuad = false;
         for (Long ID : committedUAVS) {
             UAVMap.put(ID, main.getUAV(ID));
             main.getUAV(ID).fireZoneController = this;
             if (main.getUAV(ID).fixedWing) {
-                System.out.println("I was wrong");
                 main.getUAV(ID).FlyThrough(getCenter());
             } else {
                 main.getUAV(ID).FollowEdge(true);
+                hasQuad = true;
             }
         }
+
+        if (hasQuad) {
+        }
+
 
         zoneIDCounter++;
         zoneID = zoneIDCounter;
@@ -228,7 +233,7 @@ public class FireZoneController {
             }
 
             for (int i = 1; i < 3; i++) {
-                if (1.4 * distance(point, estimatedHazardZone.get(0)) < distance(point, estimatedHazardZone.get(i))) {
+                if (1.7 * distance(point, estimatedHazardZone.get(0)) < distance(point, estimatedHazardZone.get(i))) {
                     RemoveHazardZonePoint(0);
                 }
             }

@@ -71,6 +71,17 @@ public class FireMap {
 
         route.get(route.size() - 1).setNextWaypoint(route.get(0).getNumber());
 
+        MissionCommand o = new MissionCommand();
+        o.getWaypointList().addAll(route);
+        o.getWaypointList().add(waypointCenter);
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
         System.out.printf("Created map with %d/%d\n", width, height);
     }
 
@@ -89,10 +100,10 @@ public class FireMap {
     public void getTask(UAV uav) {
         if (uav.fixedWing) {
             if (firstFixedWing) {
-                uav.MoveToPoint(route.get(0));
+                uav.FlyThrough(route.get(0));
                 firstFixedWing = false;
             } else {
-                uav.MoveToPoint(route.get(0));
+                uav.FlyThrough(route.get(0));
             }
         } else {
             uav.currentTask = UAVTASKS.STANDBY;

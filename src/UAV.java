@@ -20,8 +20,9 @@ public class UAV {
     public boolean fixedWing;
     protected float targetSpeed;
     protected float targetHeight = 700;
+    private boolean once = true;
     
-    protected FuelState fuelState;
+    protected FuelState fuelState = new FuelState();
     protected ArrayList<Location3D> refuelPoints = new ArrayList<Location3D>();
 
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
@@ -49,6 +50,8 @@ public class UAV {
     }
 
     public void Update() {
+
+
         if(UpdateFuel()) {
             if(refuelPoints.isEmpty()) {
                 System.out.println("WARNING - Drone needs fuel but has no refuel position");
@@ -110,7 +113,8 @@ public class UAV {
                 closest = pos;
             }
         }
-        Waypoint refuelWaypoint = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, 1, targetSpeed, TurnType.TurnShort);
+
+        Waypoint refuelWaypoint = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, main.getNextWaypointID(), targetSpeed, TurnType.TurnShort);
         LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
         LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 1000, targetSpeed, closest);
         MissionCommand o = new MissionCommand();
@@ -204,19 +208,32 @@ public class UAV {
     }
 
     public void MoveToPoint(Waypoint point) {
-        MissionCommand o = new MissionCommand();
+        /*MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
-        o.getVehicleActionList().add(new GoToWaypointAction());
-        point.setAltitude(targetHeight);
-        point.setSpeed(targetSpeed);
-        o.getWaypointList().add(point);
+        o.getVehicleActionList().add(new GoToWaypointAction(point.getNumber()));
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
         } catch (Exception e) {
             e.printStackTrace();
+        }*/
+
+        Location3D location = new Location3D();
+        location.setLongitude(point.getLongitude());
+        location.setLatitude(point.getLatitude());
+
+        MustFlyTask flyTask = new MustFlyTask();
+        flyTask.setPosition(location);
+        flyTask.setTaskID(main.getNextCommandID());
+        flyTask.getEligibleEntities().add(airVehicleState.getID());
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(flyTask, true));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
 
     }
 
@@ -240,14 +257,27 @@ public class UAV {
     public void FlyThrough(Location3D target) {
         currentTask = UAVTASKS.FLYTHROUGH;
 
+        System.out.println("calling it");
+
         ResetCamera();
 
-        Waypoint waypoint1 = CreateWaypoint(target.getLatitude(), target.getLongitude(), targetHeight, AltitudeType.MSL, 1, targetSpeed, TurnType.TurnShort);
+        Waypoint waypoint1 = new Waypoint();
+        waypoint1.setLatitude(target.getLatitude());
+        waypoint1.setLongitude(target.getLongitude());
+        waypoint1.setAltitude(targetHeight);
+        waypoint1.setAltitudeType(AltitudeType.MSL);
+        //Setting unique ID for the waypoint
+        waypoint1.setNumber(main.getNextWaypointID());
+        //Setting speed to reach the waypoint
+        waypoint1.setSpeed(targetSpeed);
+        waypoint1.setTurnType(TurnType.TurnShort);
 
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
         o.getWaypointList().add(waypoint1);
+
+        o.getVehicleActionList().add(new GoToWaypointAction());
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
@@ -255,8 +285,8 @@ public class UAV {
             e.printStackTrace();
         }
     }
-    
-    private Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, int number, float speed, TurnType turnType) {
+
+    private Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
         Waypoint waypoint1 = new Waypoint();
         waypoint1.setLatitude(lat);
         waypoint1.setLongitude(lon);

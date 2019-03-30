@@ -39,7 +39,7 @@ public class Main extends Thread {
     private FireMap fireMap = null;
 
     private long commandID = 0;
-    private long waypointID = 1;
+    private long waypointID = 0;
 
     private Map<Long, UAV> UAVMap = new HashMap<>();
 
@@ -116,12 +116,7 @@ public class Main extends Thread {
             HazardZoneDetection msg = ((HazardZoneDetection) o);
             Location3D detectedLocation = msg.getDetectedLocation();
 
-            if (UAVMap.get(msg.getDetectingEnitiyID()).fixedWing) {
-                return;
-            }
-
             if (UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController == null) {
-
                 List<Long> UAVS = new ArrayList<>();
                 UAVS.add(msg.getDetectingEnitiyID());
 
