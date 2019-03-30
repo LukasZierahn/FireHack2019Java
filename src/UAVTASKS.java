@@ -5,7 +5,7 @@ public enum UAVTASKS {
     FLYTHROUGH(3),
     STANDBY(4),
     PATROL(5),
-    HUNTING_FIRE(6),
+    CHASING_FIRE(6),
     REFUEL(7);
 
     private final int val;

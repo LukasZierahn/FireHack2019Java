@@ -11,8 +11,7 @@ public class UAV {
 
     public FireZoneController fireZoneController = null;
     public UAVTASKS currentTask = UAVTASKS.NO_TASK;
-    protected boolean sawFire = false;
-    protected long lastSwitch = 0;
+    protected long lastSeenFire = 0;
     public Location3D standbyPoint;
 
     protected Main main;
@@ -74,10 +73,14 @@ public class UAV {
         
         if (currentTask == UAVTASKS.FOLLOW_EDGE_CLOCKWISE || currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
             UpdateFollow();
+
         } else if (currentTask == UAVTASKS.FLYTHROUGH) {
-            if (!sawFire) {
+            if (!HasSeenFire()) {
                 currentTask = UAVTASKS.NO_TASK;
+                fireZoneController.AddHazardZonePoint(airVehicleState.getLocation(), true);
+                fireZoneController = null;
                 //TODO:Ask the fire zone controller to give us a new job
+
             }
         } else if (currentTask == UAVTASKS.NO_TASK) {
             if (fireZoneController == null) {
@@ -285,7 +288,7 @@ public class UAV {
             final float inFire = 12;
             final float notInFire = 5;
 
-            if (sawFire) {
+            if (HasSeenFire()) {
                 if (clockwise) {
                     msg.setHeading(airVehicleState.getHeading() - inFire);
                 } else {
@@ -304,7 +307,7 @@ public class UAV {
             final float flatMove = 5;
             final float scale = (((GimbalState) airVehicleState.getPayloadStateList().get(0)).getAzimuth() - 45) / 45.0f;
 
-            if (sawFire) {
+            if (HasSeenFire()) {
                 if (clockwise) {
                     msg.setHeading(airVehicleState.getHeading() + flatMove * scale);
                 } else {
@@ -329,18 +332,14 @@ public class UAV {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
-
-        sawFire = false;
-
     }
 
 
     public void SawFire() {
-        if (!sawFire) {
-            lastSwitch = main.getTime();
-        }
-        sawFire = true;
+        lastSeenFire = main.getTime();
+    }
+
+    public boolean HasSeenFire() {
+        return main.getTime() - lastSeenFire < 2000;
     }
 }
