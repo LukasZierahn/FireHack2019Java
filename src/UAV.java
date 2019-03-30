@@ -24,7 +24,7 @@ public class UAV {
     protected float targetHeight = 700;
 
     protected FuelState fuelState = new FuelState();
-    protected ArrayList<Location3D> refuelPoints = new ArrayList<Location3D>();
+    protected ArrayList<Location3D> refuelPoints = new ArrayList<>();
 
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
         this.main = main;

@@ -35,7 +35,7 @@ public class FireZoneController {
         AddHazardZonePoint(firstContact);
 
         for (Long ID : committedUAVS) {
-            if (main.getUAV(ID).fixedWing) {
+            if (!main.getUAV(ID).fixedWing) {
                 UAVMap.put(ID, main.getUAV(ID));
                 main.getUAV(ID).fireZoneController = this;
 
@@ -79,10 +79,8 @@ public class FireZoneController {
     public void HandleHazardZoneDetection(HazardZoneDetection msg) {
         UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
 
-        System.out.println(msg.getDetectingEnitiyID());
-
         if (uav.fixedWing) {
-            if (uav.sawFire) {
+            if (!uav.sawFire) {
                 AddHazardZonePoint(msg.getDetectedLocation());
             }
         } else {
