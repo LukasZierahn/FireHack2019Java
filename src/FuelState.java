@@ -15,12 +15,12 @@ public class FuelState {
     public float remaining = 100;
     public boolean requiresRefuel = false;
     
-    private float lowerThreshold = 10;
+    private float lowerThreshold = 97;
     private float upperThreshold = 99;
 
     public void Update(AirVehicleState vehState) {
         remaining = vehState.getEnergyAvailable();
         if(remaining < lowerThreshold) requiresRefuel = true;
-        if(remaining > upperThreshold) requiresRefuel = false;
+        if(remaining >= upperThreshold) requiresRefuel = false;
     }
 }

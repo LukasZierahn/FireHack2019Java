@@ -74,6 +74,7 @@ public class Main extends Thread {
                     readMessages();
                 } catch (Exception e) {
                     System.out.println("Error while reading messages");
+                    System.out.println(e.getMessage());
                     e.printStackTrace();
                 }
             }

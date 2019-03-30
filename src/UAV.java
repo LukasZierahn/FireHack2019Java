@@ -59,7 +59,7 @@ public class UAV {
             if(refuelPoints.isEmpty()) {
                 System.out.println("WARNING - Drone needs fuel but has no refuel position");
             } else {
-                if(currentTask != UAVTASKS.REFUEL) return;
+                if(currentTask == UAVTASKS.REFUEL) return;
                 currentTask = UAVTASKS.REFUEL;
                 InitRefuelMission();
             }
@@ -97,8 +97,11 @@ public class UAV {
             }
         }
 
-        MoveToWayPoint(CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, main.getNextWaypointID(), targetSpeed, TurnType.TurnShort));
-
+        List<Waypoint> targets = new ArrayList<Waypoint>();
+        long wpID = main.getNextWaypointID();
+        targets.add(CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort));
+        MoveToWayPoint(targets, wpID);
+        
         /*LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
         LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 1000, targetSpeed, closest);
         MissionCommand o = new MissionCommand();
