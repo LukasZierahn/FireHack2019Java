@@ -14,6 +14,8 @@ import afrl.cmasi.searchai.HazardZoneDetection;
 import afrl.cmasi.searchai.RecoveryPoint;
 import avtas.lmcp.LMCPFactory;
 import avtas.lmcp.LMCPObject;
+
+import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -96,6 +98,15 @@ public class Main extends Thread {
         } else if (o instanceof AirVehicleState) {
             AirVehicleState msg = (AirVehicleState) o;
             UAVMap.get(msg.getID()).airVehicleState = msg;
+
+            UAV uav = UAVMap.get(msg.getID());
+
+            Point2D pos = fireMap.Location3DToCoord(uav.airVehicleState.getLocation());
+
+            if (pos.getX() < 50 || pos.getX() > fireMap.width - 50 || pos.getY() < 50 || pos.getY() > fireMap.height - 50) {
+                uav.InitRefuelMission();
+            }
+
             fireMap.HandleAirVehicleState(msg);
 
         } else if (o instanceof SessionStatus) {

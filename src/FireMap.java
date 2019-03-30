@@ -14,7 +14,7 @@ public class FireMap {
 
     private Main main;
 
-    private int width, height;
+    public int width, height;
 
     private long data[];
     private boolean dataFire[];
@@ -38,12 +38,12 @@ public class FireMap {
         waypointCenter = new Waypoint();
         waypointCenter.setLatitude(center.getLatitude());
         waypointCenter.setLongitude(center.getLongitude());
-        waypointCenter.setAltitude(700);
+        waypointCenter.setAltitude(800);
         waypointCenter.setAltitudeType(AltitudeType.MSL);
         //Setting unique ID for the waypoint
         waypointCenter.setNumber(main.getNextWaypointID());
         //Setting speed to reach the waypoint
-        waypointCenter.setSpeed(30);
+        waypointCenter.setSpeed(40);
         waypointCenter.setTurnType(TurnType.FlyOver);
         waypointCenter.setNextWaypoint(0);
 
@@ -67,10 +67,10 @@ public class FireMap {
             Location3D location = locations.get(i);
             nextWaypoint.setLatitude(location.getLatitude());
             nextWaypoint.setLongitude(location.getLongitude());
-            nextWaypoint.setAltitude(700);
+            nextWaypoint.setAltitude(800);
             nextWaypoint.setAltitudeType(AltitudeType.MSL);
             nextWaypoint.setNumber(main.getNextWaypointID());
-            nextWaypoint.setSpeed(30);
+            nextWaypoint.setSpeed(40);
             nextWaypoint.setTurnType(TurnType.FlyOver);
             route.add(nextWaypoint);
         }
@@ -82,10 +82,10 @@ public class FireMap {
 
         for (int i = 0; i < 4; i++) {
             Waypoint nextWaypoint = new Waypoint();
-            nextWaypoint.setAltitude(700);
+            nextWaypoint.setAltitude(800);
             nextWaypoint.setAltitudeType(AltitudeType.MSL);
             nextWaypoint.setNumber(main.getNextWaypointID());
-            nextWaypoint.setSpeed(30);
+            nextWaypoint.setSpeed(40);
             nextWaypoint.setTurnType(TurnType.FlyOver);
 
             Location3D location;
@@ -139,8 +139,8 @@ public class FireMap {
                 uav.InitRefuelMission();
             }
         } else {
-            uav.currentTask = UAVTASKS.STANDBY;
-            uav.standbyPoint = center;
+            //uav.currentTask = UAVTASKS.STANDBY;
+           //uav.standbyPoint = center;
         }
 
     }
