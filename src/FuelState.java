@@ -15,7 +15,7 @@ public class FuelState {
     public float remaining = 100;
     public boolean requiresRefuel = false;
     
-    private float lowerThreshold = 90;
+    private float lowerThreshold = 10;
     private float upperThreshold = 99;
 
     public void Update(AirVehicleState vehState) {

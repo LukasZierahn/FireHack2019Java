@@ -65,7 +65,7 @@ public class UAV {
             }
         } else {
             if(currentTask == UAVTASKS.REFUEL) {
-                currentTask = null;
+                currentTask = UAVTASKS.NO_TASK;
             }
         }
         

@@ -23,10 +23,6 @@ public class FireMap {
 
     public Waypoint waypointCenter;
     public List<Waypoint> route = new ArrayList<>();
-    public long firstWaypointID;
-
-    private boolean firstFixedWing = true;
-
 
     public FireMap(Main main, KeepInZone msg) {
         this.main = main;
@@ -74,9 +70,7 @@ public class FireMap {
         }
         route.get(3).setNextWaypoint(route.get(0).getNumber());
 
-        System.out.println(route);
-
-        System.out.printf("Created map with %d/%d\n", width, height);
+        //System.out.printf("Created map with %d/%d\n", width, height);
     }
 
     public void HandleAirVehicleState(AirVehicleState msg) {
@@ -93,7 +87,7 @@ public class FireMap {
 
     public void getTask(UAV uav) {
         if (uav.fixedWing) {
-            uav.MoveToWayPoint(route,3);
+            uav.MoveToWayPoint(route, route.get(uav.nr).getNumber());
         } else {
             uav.currentTask = UAVTASKS.STANDBY;
             uav.standbyPoint = center;
