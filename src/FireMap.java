@@ -3,6 +3,7 @@ import afrl.cmasi.KeepInZone;
 import afrl.cmasi.Location3D;
 import afrl.cmasi.Rectangle;
 
+import afrl.cmasi.searchai.HazardZoneDetection;
 import mil.afrl.amase.util.CmasiNavUtils;
 
 import java.awt.geom.Point2D;
@@ -15,7 +16,7 @@ public class FireMap {
 
     private int width, height;
 
-    private float data[];
+    private int data[];
 
     private Location3D center;
 
@@ -26,15 +27,15 @@ public class FireMap {
         width = Math.round(((Rectangle) msg.getBoundary()).getWidth());
         height = Math.round(((Rectangle) msg.getBoundary()).getHeight());
 
-        data = new float[width * height];
+        data = new int[width * height];
 
         System.out.printf("Created map with %d/%d\n", width, height);
     }
 
     public void HandleAirVehicleState(AirVehicleState msg) {
-        System.out.println(CoordToLocation(Location3DToCoord(msg.getLocation())));
-        System.out.println(msg.getLocation());
-        System.out.println();
+    }
+
+    public void HandleHazardZoneDetection(HazardZoneDetection msg) {
     }
 
     public Location3D CoordToLocation(Point2D pos) {

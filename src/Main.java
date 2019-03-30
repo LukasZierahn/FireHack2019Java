@@ -11,7 +11,6 @@
 
 import afrl.cmasi.*;
 import afrl.cmasi.searchai.HazardZoneDetection;
-import afrl.cmasi.searchai.HazardZoneEstimateReport;
 import avtas.lmcp.LMCPFactory;
 import avtas.lmcp.LMCPObject;
 import java.io.IOException;
@@ -21,6 +20,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,10 +37,16 @@ public class Main extends Thread {
 
     private FireMap fireMap = null;
 
+    private long commandID = 0;
+
     private Map<Long, UAV> UAVMap = new HashMap<>();
+
+    private List<FireZoneController> hazardZones = new ArrayList<>();
 
     private InputStream in;
     private OutputStream out;
+
+    private long time;
 
 
     public Main() {
@@ -75,14 +81,76 @@ public class Main extends Thread {
 
         LMCPObject o = LMCPFactory.getObject(in);
         if (o instanceof KeepInZone) {
-            fireMap = new FireMap(this, (KeepInZone) o);
+            if (fireMap == null) {
+                fireMap = new FireMap(this, (KeepInZone) o);
+            }
+
         } else if (o instanceof AirVehicleState) {
             AirVehicleState msg = (AirVehicleState) o;
             UAVMap.get(msg.getID()).airVehicleState = msg;
             fireMap.HandleAirVehicleState(msg);
+
+        } else if (o instanceof SessionStatus) {
+            SessionStatus msg = (SessionStatus) o;
+            time = msg.getScenarioTime();
+
+            for (UAV uav : UAVMap.values()) {
+                uav.Update();
+            }
+
+            for (int i = hazardZones.size() - 1; i >= 0; --i) {
+                for (int j = i - 1; j >= 0; --j) {
+                    if (hazardZones.get(j).CheckAndMerge(hazardZones.get(i))) {
+                        System.out.println("Merged one");
+                        hazardZones.remove(i);
+                    }
+                }
+            }
+
         } else if (o instanceof AirVehicleConfiguration) {
-            UAVMap.put(((AirVehicleConfiguration) o).getID(), new UAV((AirVehicleConfiguration)o));
+            UAVMap.put(((AirVehicleConfiguration) o).getID(), new UAV( this, (AirVehicleConfiguration) o));
+
+        } else if (o instanceof HazardZoneDetection) {
+            HazardZoneDetection msg = ((HazardZoneDetection) o);
+            Location3D detectedLocation = msg.getDetectedLocation();
+
+            if (UAVMap.get(msg.getDetectingEnitiyID()).fixedWing) {
+                return;
+            }
+
+            if (UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController == null) {
+
+                List<Long> UAVS = new ArrayList<>();
+                UAVS.add(msg.getDetectingEnitiyID());
+
+                hazardZones.add(new FireZoneController(this, detectedLocation, UAVS));
+            } else {
+                UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController.HandleHazardZoneDetection(msg);
+            }
         }
+        else {
+            System.out.println("Unhandled Message: " + o.getLMCPTypeName());
+        }
+    }
+
+    public long getNextCommandID() {
+        return commandID++;
+    }
+
+    public OutputStream getOut() {
+        return out;
+    }
+
+    public UAV getUAV(Long ID) {
+        if (!UAVMap.containsKey(ID)) {
+            System.out.printf("Tried to receive UAV with ID: %s but that ID doesn't exist!\n", ID);
+        }
+
+        return UAVMap.get(ID);
+    }
+
+    public long getTime() {
+        return time;
     }
 
     /** tries to connect to the server.  If there is a problem (such as the server not running yet) it
