@@ -36,6 +36,7 @@ public class FireZoneController {
             UAVMap.put(ID, main.getUAV(ID));
             main.getUAV(ID).fireZoneController = this;
             if (main.getUAV(ID).fixedWing) {
+                System.out.println("I was wrong");
                 main.getUAV(ID).FlyThrough(getCenter());
             } else {
                 main.getUAV(ID).FollowEdge(true);

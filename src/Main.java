@@ -39,6 +39,7 @@ public class Main extends Thread {
     private FireMap fireMap = null;
 
     private long commandID = 0;
+    private long waypointID = 1;
 
     private Map<Long, UAV> UAVMap = new HashMap<>();
 
@@ -145,6 +146,10 @@ public class Main extends Thread {
         return commandID++;
     }
 
+    public long getNextWaypointID() {
+        return waypointID++;
+    }
+
     public OutputStream getOut() {
         return out;
     }
@@ -159,6 +164,10 @@ public class Main extends Thread {
 
     public long getTime() {
         return time;
+    }
+
+    public FireMap getFireMap() {
+        return fireMap;
     }
 
     /** tries to connect to the server.  If there is a problem (such as the server not running yet) it

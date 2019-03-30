@@ -1,6 +1,8 @@
 import afrl.cmasi.*;
 import java.util.ArrayList;
 
+import java.util.List;
+
 
 public class UAV {
 
@@ -11,6 +13,7 @@ public class UAV {
     public UAVTASKS currentTask = UAVTASKS.NO_TASK;
     protected boolean sawFire = false;
     protected long lastSwitch = 0;
+    public Location3D standbyPoint;
 
     protected Main main;
 
@@ -70,6 +73,30 @@ public class UAV {
                 currentTask = UAVTASKS.NO_TASK;
                 //TODO:Ask the fire zone controller to give us a new job
             }
+        } else if (currentTask == UAVTASKS.STANDBY) {
+            if (!airVehicleState.getLocation().equals(standbyPoint)) {
+                MoveToPoint(main.getFireMap().waypointCenter);
+            }
+        } else if (currentTask == UAVTASKS.NO_TASK) {
+            if (fireZoneController == null) {
+                main.getFireMap().getTask(this);
+            }
+        }
+    }
+
+    public void Patrol(List<Waypoint> route, long StartID) {
+        System.out.println(airVehicleState.getID());
+        currentTask = UAVTASKS.PATROL;
+        MissionCommand o = new MissionCommand();
+        o.setVehicleID(airVehicleState.getID());
+        o.setCommandID(main.getNextCommandID());
+        //o.getVehicleActionList().add(new GoToWaypointAction());
+        o.getWaypointList().add(route.get(0));
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
     
@@ -176,6 +203,23 @@ public class UAV {
 
     }
 
+    public void MoveToPoint(Waypoint point) {
+        MissionCommand o = new MissionCommand();
+        o.setVehicleID(airVehicleState.getID());
+        o.setCommandID(main.getNextCommandID());
+        o.getVehicleActionList().add(new GoToWaypointAction());
+        point.setAltitude(targetHeight);
+        point.setSpeed(targetSpeed);
+        o.getWaypointList().add(point);
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
     public void ResetCamera() {
         GimbalAngleAction cameraMsg = new GimbalAngleAction();
         cameraMsg.setPayloadID(1);
@@ -262,6 +306,9 @@ public class UAV {
             o.getVehicleActionList().add(cameraMsg);
         } else {
             GimbalScanAction cameraMsg = new GimbalScanAction();
+
+            cameraMsg.setStartElevation(-20);
+            cameraMsg.setEndElevation(-20);
 
             if (clockwise) {
                 currentTask = UAVTASKS.FOLLOW_EDGE_CLOCKWISE;
