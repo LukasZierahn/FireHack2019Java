@@ -166,22 +166,11 @@ LoiterHere();
         MissionCommand mission = WrapInMission(routeWrapper, route.getNumber());
         mission.getVehicleActionList().add(loiterAction);
         
-
-    public void MoveToWayPoint(Waypoint route) {
-        currentTask = UAVTASKS.PATROL;
-
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        o.getWaypointList().add(route);
-        o.setFirstWaypoint(route.getNumber());
-
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(mission, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
-        
     }
 
     public void ResetCamera() {
