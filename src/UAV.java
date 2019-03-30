@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import sun.jvm.hotspot.debugger.cdbg.ClosestSymbol;
 
-import static java.lang.Math.random;
-
 
 public class UAV {
 
@@ -27,8 +25,6 @@ public class UAV {
 
     protected FuelState fuelState = new FuelState();
     protected ArrayList<Location3D> refuelPoints = new ArrayList<>();
-
-    private boolean start = true;
 
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
         this.main = main;
@@ -60,11 +56,6 @@ public class UAV {
     }
 
     public void Update() {
-
-        if(start) {
-            RandomMovement();
-        }
-
         if(UpdateFuel()) {
             if(refuelPoints.isEmpty()) {
                 System.out.println("WARNING - Drone needs fuel but has no refuel position");
@@ -96,33 +87,8 @@ public class UAV {
         } else if (currentTask == UAVTASKS.NO_TASK) {
             if (fireZoneController == null) {
                 main.getFireMap().getTask(this);
-            } else {
-                RandomMovement();
             }
         }
-    }
-
-    public void RandomMovement() {
-        FlightDirectorAction msg = new FlightDirectorAction();
-        msg.setSpeed(targetSpeed);
-        msg.setAltitudeType(AltitudeType.MSL);
-        msg.setAltitude(700);
-        msg.setClimbRate(0);
-
-        msg.setHeading(airVehicleState.getHeading() + 360 * (float)random());
-
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        o.getVehicleActionList().add(msg);
-
-        try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        start = false;
     }
 
     public void InitRefuelMission() {
@@ -162,24 +128,6 @@ public class UAV {
     public void MoveToWayPoint(List<Waypoint> route, long startID) {
         MissionCommand o = WrapInMission(route, startID);
         currentTask = UAVTASKS.PATROL;
-
-        GimbalScanAction cameraMsg = new GimbalScanAction();
-        cameraMsg.setPayloadID(1);
-        cameraMsg.setCycles(0);
-
-        cameraMsg.setStartElevation(-20);
-        cameraMsg.setEndElevation(-20);
-
-        cameraMsg.setStartAzimuth(-90);
-        cameraMsg.setEndAzimuth(90);
-
-        cameraMsg.setAzimuthSlewRate(50);
-
-        //o.getVehicleActionList().add(cameraMsg);
-
-        for (Waypoint wp : route) {
-            wp.getVehicleActionList().add(cameraMsg);
-        }
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
