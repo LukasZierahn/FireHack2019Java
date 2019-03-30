@@ -42,7 +42,7 @@ public class FireMap {
         waypointCenter.setNumber(main.getNextWaypointID());
         //Setting speed to reach the waypoint
         waypointCenter.setSpeed(30);
-        waypointCenter.setTurnType(TurnType.TurnShort);
+        waypointCenter.setTurnType(TurnType.FlyOver);
         waypointCenter.setNextWaypoint(0);
 
 
@@ -61,7 +61,7 @@ public class FireMap {
             nextWaypoint.setAltitudeType(AltitudeType.MSL);
             nextWaypoint.setNumber(main.getNextWaypointID());
             nextWaypoint.setSpeed(30);
-            nextWaypoint.setTurnType(TurnType.TurnShort);
+            nextWaypoint.setTurnType(TurnType.FlyOver);
             route.add(nextWaypoint);
         }
 

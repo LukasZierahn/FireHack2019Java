@@ -128,6 +128,7 @@ public class UAV {
 
 
     public void MoveToWayPoint(List<Waypoint> route, long startID) {
+        currentTask = UAVTASKS.PATROL;
 
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
@@ -143,6 +144,7 @@ public class UAV {
     }
 
     public void MoveToWayPoint(Waypoint route) {
+        currentTask = UAVTASKS.PATROL;
 
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
