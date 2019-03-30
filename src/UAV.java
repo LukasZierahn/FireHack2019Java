@@ -18,10 +18,11 @@ public class UAV {
     protected Main main;
 
     public boolean fixedWing;
+    public int nr = 0; //nr denotes which fixedWing (respectively multi) nr this has
+
     protected float targetSpeed;
     protected float targetHeight = 700;
-    private boolean once = true;
-    
+
     protected FuelState fuelState = new FuelState();
     protected ArrayList<Location3D> refuelPoints = new ArrayList<Location3D>();
 
@@ -35,10 +36,14 @@ public class UAV {
                 break;
             case "Multi":
                 fixedWing = false;
+                nr = main.fixedWings;
+                main.fixedWings++;
                 targetSpeed = 20;
                 break;
             case "FixedWing":
                 fixedWing = true;
+                nr = main.multi;
+                main.multi++;
                 targetSpeed = 30;
                 break;
             default:
@@ -50,8 +55,6 @@ public class UAV {
     }
 
     public void Update() {
-
-
         if(UpdateFuel()) {
             if(refuelPoints.isEmpty()) {
                 System.out.println("WARNING - Drone needs fuel but has no refuel position");
@@ -76,10 +79,6 @@ public class UAV {
                 currentTask = UAVTASKS.NO_TASK;
                 //TODO:Ask the fire zone controller to give us a new job
             }
-        } else if (currentTask == UAVTASKS.STANDBY) {
-            if (!airVehicleState.getLocation().equals(standbyPoint)) {
-                MoveToPoint(main.getFireMap().waypointCenter);
-            }
         } else if (currentTask == UAVTASKS.NO_TASK) {
             if (fireZoneController == null) {
                 main.getFireMap().getTask(this);
@@ -87,22 +86,6 @@ public class UAV {
         }
     }
 
-    public void Patrol(List<Waypoint> route, long StartID) {
-        System.out.println(airVehicleState.getID());
-        currentTask = UAVTASKS.PATROL;
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        //o.getVehicleActionList().add(new GoToWaypointAction());
-        o.getWaypointList().add(route.get(0));
-
-        try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
     public void InitRefuelMission() {
         Location3D closest = null;
         double minDist = Double.MAX_VALUE;
@@ -114,20 +97,21 @@ public class UAV {
             }
         }
 
-        Waypoint refuelWaypoint = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, main.getNextWaypointID(), targetSpeed, TurnType.TurnShort);
-        LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
+        MoveToWayPoint(CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, main.getNextWaypointID(), targetSpeed, TurnType.TurnShort));
+
+        /*LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
         LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 1000, targetSpeed, closest);
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
-        o.getWaypointList().add(refuelWaypoint);
         o.getVehicleActionList().add(loiterAction);
-        
+
+
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
         } catch (Exception e) {
             e.printStackTrace();
-        }
+        }*/
     }
     
     /**
@@ -139,102 +123,35 @@ public class UAV {
         return fuelState.requiresRefuel;
     }
 
-    public void UpdateFollow() {
-        boolean clockwise = true;
-        if (currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
-            clockwise = false;
-        }
 
-        FlightDirectorAction msg = new FlightDirectorAction();
-        msg.setSpeed(targetSpeed);
-        msg.setAltitudeType(AltitudeType.MSL);
-        msg.setAltitude(700);
-        msg.setClimbRate(0);
-
-
-        if (fixedWing) {
-            final float inFire = 12;
-            final float notInFire = 5;
-
-            if (sawFire) {
-                if (clockwise) {
-                    msg.setHeading(airVehicleState.getHeading() - inFire);
-                } else {
-                    msg.setHeading(airVehicleState.getHeading() + inFire);
-                }
-            } else {
-                if (clockwise) {
-                    msg.setHeading(airVehicleState.getHeading() + notInFire);
-                } else {
-                    msg.setHeading(airVehicleState.getHeading() - notInFire);
-                }
-            }
-
-        } else {
-
-            final float flatMove = 5;
-            final float scale = (((GimbalState) airVehicleState.getPayloadStateList().get(0)).getAzimuth() - 45) / 45.0f;
-
-            if (sawFire) {
-                if (clockwise) {
-                    msg.setHeading(airVehicleState.getHeading() + flatMove * scale);
-                } else {
-                    msg.setHeading(airVehicleState.getHeading() - flatMove * scale);
-                }
-            } else {
-                if (clockwise) {
-                    msg.setHeading(airVehicleState.getHeading() - flatMove * scale);
-                } else {
-                    msg.setHeading(airVehicleState.getHeading() + flatMove * scale);
-                }
-            }
-        }
+    public void MoveToWayPoint(List<Waypoint> route, long startID) {
 
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
-        o.getVehicleActionList().add(msg);
+        o.getWaypointList().addAll(route);
+        o.setFirstWaypoint(startID);
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
-
-        sawFire = false;
-
     }
 
-    public void MoveToPoint(Waypoint point) {
-        /*MissionCommand o = new MissionCommand();
+    public void MoveToWayPoint(Waypoint route) {
+
+        MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
-        o.getVehicleActionList().add(new GoToWaypointAction(point.getNumber()));
+        o.getWaypointList().add(route);
+        o.setFirstWaypoint(route.getNumber());
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
         } catch (Exception e) {
             e.printStackTrace();
-        }*/
-
-        Location3D location = new Location3D();
-        location.setLongitude(point.getLongitude());
-        location.setLatitude(point.getLatitude());
-
-        MustFlyTask flyTask = new MustFlyTask();
-        flyTask.setPosition(location);
-        flyTask.setTaskID(main.getNextCommandID());
-        flyTask.getEligibleEntities().add(airVehicleState.getID());
-
-        try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(flyTask, true));
-        } catch (Exception e) {
-            e.printStackTrace();
         }
-
-
     }
 
     public void ResetCamera() {
@@ -246,38 +163,6 @@ public class UAV {
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
         o.getVehicleActionList().add(cameraMsg);
-
-        try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void FlyThrough(Location3D target) {
-        currentTask = UAVTASKS.FLYTHROUGH;
-
-        System.out.println("calling it");
-
-        ResetCamera();
-
-        Waypoint waypoint1 = new Waypoint();
-        waypoint1.setLatitude(target.getLatitude());
-        waypoint1.setLongitude(target.getLongitude());
-        waypoint1.setAltitude(targetHeight);
-        waypoint1.setAltitudeType(AltitudeType.MSL);
-        //Setting unique ID for the waypoint
-        waypoint1.setNumber(main.getNextWaypointID());
-        //Setting speed to reach the waypoint
-        waypoint1.setSpeed(targetSpeed);
-        waypoint1.setTurnType(TurnType.TurnShort);
-
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        o.getWaypointList().add(waypoint1);
-
-        o.getVehicleActionList().add(new GoToWaypointAction());
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
@@ -377,6 +262,75 @@ public class UAV {
             e.printStackTrace();
         }
     }
+
+    public void UpdateFollow() {
+        boolean clockwise = true;
+        if (currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
+            clockwise = false;
+        }
+
+        FlightDirectorAction msg = new FlightDirectorAction();
+        msg.setSpeed(targetSpeed);
+        msg.setAltitudeType(AltitudeType.MSL);
+        msg.setAltitude(700);
+        msg.setClimbRate(0);
+
+
+        if (fixedWing) {
+            final float inFire = 12;
+            final float notInFire = 5;
+
+            if (sawFire) {
+                if (clockwise) {
+                    msg.setHeading(airVehicleState.getHeading() - inFire);
+                } else {
+                    msg.setHeading(airVehicleState.getHeading() + inFire);
+                }
+            } else {
+                if (clockwise) {
+                    msg.setHeading(airVehicleState.getHeading() + notInFire);
+                } else {
+                    msg.setHeading(airVehicleState.getHeading() - notInFire);
+                }
+            }
+
+        } else {
+
+            final float flatMove = 5;
+            final float scale = (((GimbalState) airVehicleState.getPayloadStateList().get(0)).getAzimuth() - 45) / 45.0f;
+
+            if (sawFire) {
+                if (clockwise) {
+                    msg.setHeading(airVehicleState.getHeading() + flatMove * scale);
+                } else {
+                    msg.setHeading(airVehicleState.getHeading() - flatMove * scale);
+                }
+            } else {
+                if (clockwise) {
+                    msg.setHeading(airVehicleState.getHeading() - flatMove * scale);
+                } else {
+                    msg.setHeading(airVehicleState.getHeading() + flatMove * scale);
+                }
+            }
+        }
+
+        MissionCommand o = new MissionCommand();
+        o.setVehicleID(airVehicleState.getID());
+        o.setCommandID(main.getNextCommandID());
+        o.getVehicleActionList().add(msg);
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+
+        sawFire = false;
+
+    }
+
 
     public void SawFire() {
         if (!sawFire) {

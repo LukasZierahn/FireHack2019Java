@@ -50,37 +50,31 @@ public class FireMap {
         waypointCenter.setNextWaypoint(0);
 
 
+        List<Location3D> locations = new ArrayList<>();
+        locations.add(CoordToLocation(new Point2D.Float(width * 0.25f, height * 0.25f)));
+        locations.add(CoordToLocation(new Point2D.Float(width * 0.25f, height * 0.75f)));
+        locations.add(CoordToLocation(new Point2D.Float(width * 0.75f, height * 0.75f)));
+        locations.add(CoordToLocation(new Point2D.Float(width * 0.75f, height * 0.25f)));
+
         for (int i = 0; i < 4; i++) {
             Waypoint nextWaypoint = new Waypoint();
-            Location3D location = CoordToLocation(new Point2D.Float(  1 + (i % 2) * 5000, ((i / 2) + 1) * 5000));
+            Location3D location = locations.get(i);
             nextWaypoint.setLatitude(location.getLatitude());
             nextWaypoint.setLongitude(location.getLongitude());
             nextWaypoint.setAltitude(700);
             nextWaypoint.setAltitudeType(AltitudeType.MSL);
-            //Setting unique ID for the waypoint
             nextWaypoint.setNumber(main.getNextWaypointID());
-            //Setting speed to reach the waypoint
             nextWaypoint.setSpeed(30);
             nextWaypoint.setTurnType(TurnType.TurnShort);
-
-            if (route.size() != 0) {
-                nextWaypoint.setNextWaypoint(route.get(route.size() - 1).getNumber());
-            }
             route.add(nextWaypoint);
         }
 
-        route.get(route.size() - 1).setNextWaypoint(route.get(0).getNumber());
-
-        MissionCommand o = new MissionCommand();
-        o.getWaypointList().addAll(route);
-        o.getWaypointList().add(waypointCenter);
-
-        try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-        } catch (Exception e) {
-            e.printStackTrace();
+        for (int i = 0; i < 4; i++) {
+            route.get(i).setNextWaypoint(route.get(0).getNumber() + i + 1);
         }
+        route.get(3).setNextWaypoint(route.get(0).getNumber());
 
+        System.out.println(route);
 
         System.out.printf("Created map with %d/%d\n", width, height);
     }
@@ -99,12 +93,7 @@ public class FireMap {
 
     public void getTask(UAV uav) {
         if (uav.fixedWing) {
-            if (firstFixedWing) {
-                uav.FlyThrough(route.get(0));
-                firstFixedWing = false;
-            } else {
-                uav.FlyThrough(route.get(0));
-            }
+            uav.MoveToWayPoint(route,3);
         } else {
             uav.currentTask = UAVTASKS.STANDBY;
             uav.standbyPoint = center;

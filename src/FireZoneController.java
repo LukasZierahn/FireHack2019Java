@@ -24,6 +24,8 @@ public class FireZoneController {
     private List<Location3D> estimatedHazardZone = new ArrayList<>();
     private List<Long> hazardZoneTimes = new ArrayList<>();
 
+    boolean hasQuad = false;
+
     private Location3D center = null;
     private float averageDistance = -1; //this is actually the square of the average distance
 
@@ -32,19 +34,26 @@ public class FireZoneController {
 
         AddHazardZonePoint(firstContact);
 
-        boolean hasQuad = false;
         for (Long ID : committedUAVS) {
             UAVMap.put(ID, main.getUAV(ID));
             main.getUAV(ID).fireZoneController = this;
+
             if (main.getUAV(ID).fixedWing) {
-                main.getUAV(ID).FlyThrough(getCenter());
+
             } else {
                 main.getUAV(ID).FollowEdge(true);
                 hasQuad = true;
             }
         }
 
-        if (hasQuad) {
+        if (!hasQuad) {
+            for (UAV uav : main.getUAVMap().values()) {
+                if (!uav.fixedWing && uav.fireZoneController == null && (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
+                    hasQuad = true;
+                    committedUAVS.add(uav.airVehicleState.getID());
+                    uav.fireZoneController = this;
+                }
+            }
         }
 
 

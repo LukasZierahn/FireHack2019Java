@@ -36,6 +36,9 @@ public class Main extends Thread {
     /** address of the server */
     private static String host = "localhost";
 
+    public int fixedWings = 0;
+    public int multi = 0;
+
     private FireMap fireMap = null;
 
     private long commandID = 0;
@@ -44,6 +47,8 @@ public class Main extends Thread {
     private Map<Long, UAV> UAVMap = new HashMap<>();
 
     private List<FireZoneController> hazardZones = new ArrayList<>();
+
+    private List<Waypoint> waypoints = new ArrayList<>();
 
     private InputStream in;
     private OutputStream out;
@@ -155,6 +160,10 @@ public class Main extends Thread {
         }
 
         return UAVMap.get(ID);
+    }
+
+    public Map<Long, UAV> getUAVMap() {
+        return UAVMap;
     }
 
     public long getTime() {
