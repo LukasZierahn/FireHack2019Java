@@ -76,9 +76,6 @@ public class FireZoneController {
 
     public void HandleHazardZoneDetection(HazardZoneDetection msg) {
         UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
-
-        System.out.println(msg.getDetectingEnitiyID());
-
         if (uav.fixedWing) {
             if (!uav.HasSeenFire()) {
                 AddHazardZonePoint(msg.getDetectedLocation());
