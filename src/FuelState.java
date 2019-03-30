@@ -32,7 +32,7 @@ public class FuelState {
         
         double fuelTimeRemaining = FlightTimeRemaining(uav);
         if(timeToBase + 40 > fuelTimeRemaining) {
-            System.out.println("Need to refuel: " + timeToBase + ", " + fuelTimeRemaining);
+            //System.out.println("Need to refuel: " + timeToBase + ", " + fuelTimeRemaining);
         }
         return (timeToBase + 40 > fuelTimeRemaining);
     }

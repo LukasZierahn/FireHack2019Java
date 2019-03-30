@@ -55,9 +55,9 @@ public class FireZoneController {
     }
 
     public void FindQuads (int quads) {
-            for (UAV uav : main.getUAVMap().values()) {
-                if ((!uav.fixedWing) && uav.fireZoneController == null && (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
-                    if (quads < QuadCount) {
+        for (UAV uav : main.getUAVMap().values()) {
+                if ((!uav.fixedWing) &&  (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
+                    if (quads > QuadCount) {
                         UAVMap.put(uav.airVehicleState.getID(), uav);
                         uav.fireZoneController = this;
                         ChaseFire(uav);
@@ -81,8 +81,6 @@ public class FireZoneController {
 
     public void HandleHazardZoneDetection(HazardZoneDetection msg) {
         UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
-
-        System.out.println(msg.getDetectingEnitiyID());
 
         if (uav.fixedWing) {
             if (!uav.HasSeenFire()) {

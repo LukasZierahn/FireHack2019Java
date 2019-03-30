@@ -10,6 +10,7 @@
 // This file was auto-created by LmcpGen. Modifications will be overwritten.
 
 import afrl.cmasi.*;
+import afrl.cmasi.perceive.EntityPerception;
 import afrl.cmasi.searchai.HazardZoneDetection;
 import afrl.cmasi.searchai.RecoveryPoint;
 import avtas.lmcp.LMCPFactory;
@@ -47,6 +48,7 @@ public class Main extends Thread {
     private long waypointID = 0;
 
     private Map<Long, UAV> UAVMap = new HashMap<>();
+    private Map<Long, UAVTASKS> UAVTasks = new HashMap<>();
 
     private List<FireZoneController> hazardZones = new ArrayList<>();
 
@@ -121,8 +123,11 @@ public class Main extends Thread {
                 uav.Update();
             }
 
+            UAVTaskOutput();
+
         } else if (o instanceof AirVehicleConfiguration) {
             UAVMap.put(((AirVehicleConfiguration) o).getID(), new UAV( this, (AirVehicleConfiguration) o));
+            UAVTasks.put(((AirVehicleConfiguration) o).getID(), UAVTASKS.NO_TASK);
 
         } else if (o instanceof HazardZoneDetection) {
             HazardZoneDetection msg = ((HazardZoneDetection) o);
@@ -154,6 +159,9 @@ public class Main extends Thread {
             for (UAV uav : UAVMap.values()) {
                 uav.refuelPoints.add(center);
             }
+        }
+        else if (o instanceof EntityPerception) {
+            //Stop the spam
         }
         else {
             System.out.println("Unhandled Message: " + o.getLMCPTypeName());
@@ -194,6 +202,15 @@ public class Main extends Thread {
 
     public List<FireZoneController> getHazardZones() {
         return hazardZones;
+    }
+
+    public void UAVTaskOutput() {
+        for (UAV uav : UAVMap.values()) {
+            if (uav.currentTask != UAVTasks.get(uav.airVehicleState.getID())) {
+                System.out.printf("UAV ID %d, %s, Task %s\n", uav.airVehicleState.getID(), uav.fixedWing ? "Fixed" : "Multi", uav.currentTask.toString());
+                UAVTasks.put(uav.airVehicleState.getID(), uav.currentTask);
+            }
+        }
     }
 
     /** tries to connect to the server.  If there is a problem (such as the server not running yet) it

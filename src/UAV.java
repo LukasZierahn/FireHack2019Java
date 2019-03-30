@@ -33,6 +33,7 @@ public class UAV {
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
         this.main = main;
         this.airVehicleConfiguration = airVehicleConfiguration;
+        currentTask = UAVTASKS.NO_TASK;
 
         switch (airVehicleConfiguration.getEntityType()) {
             case "":
@@ -93,13 +94,13 @@ public class UAV {
                 //TODO:Ask the fire zone controller to give us a new job
 
             }
-        } else if (currentTask == UAVTASKS.NO_TASK) {
+        } /*else if (currentTask == UAVTASKS.NO_TASK) {
             if (fireZoneController == null) {
                 main.getFireMap().getTask(this);
             } else {
                 RandomMovement();
             }
-        }
+        }*/
     }
 
     public void RandomMovement() {
