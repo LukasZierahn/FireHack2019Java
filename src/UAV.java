@@ -37,7 +37,7 @@ public class UAV {
                 fixedWing = false;
                 nr = main.fixedWings;
                 main.fixedWings++;
-                targetSpeed = 20;
+                targetSpeed = 25;
                 break;
             case "FixedWing":
                 fixedWing = true;
