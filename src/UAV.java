@@ -2,6 +2,7 @@ import afrl.cmasi.*;
 import java.util.ArrayList;
 
 import java.util.List;
+import sun.jvm.hotspot.debugger.cdbg.ClosestSymbol;
 
 
 public class UAV {
@@ -90,6 +91,18 @@ public class UAV {
     }
 
     public void InitRefuelMission() {
+        
+        Location3D closest = ClosestRefuelStation();
+
+        List<Waypoint> targets = new ArrayList<Waypoint>();
+        long wpID = main.getNextWaypointID();
+        Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
+        targets.add(wp);
+        
+        MoveToWayPoint(targets, wpID);
+    }
+    
+    private Location3D ClosestRefuelStation(){
         Location3D closest = null;
         double minDist = Double.MAX_VALUE;
         for(Location3D pos : refuelPoints) {
@@ -99,18 +112,7 @@ public class UAV {
                 closest = pos;
             }
         }
-
-        if(closest == null) return;
-
-        List<Waypoint> targets = new ArrayList<Waypoint>();
-        long wpID = main.getNextWaypointID();
-        Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
-        targets.add(wp);
-        MoveToWayPoint(targets, wpID);
-        //LoiterAtPoint(wp, closest);
-        //LoiterHere();
-
-        MoveToWayPoint(targets, wpID);
+        return closest;
     }
     
     /**
@@ -118,7 +120,7 @@ public class UAV {
      * @return True if the aircraft needs refuel, false otherwise
      */
     public boolean UpdateFuel() {
-        fuelState.Update(airVehicleState);
+        fuelState.Update(airVehicleState, this, ClosestRefuelStation());
         return fuelState.requiresRefuel;
     }
 

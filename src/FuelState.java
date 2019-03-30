@@ -1,6 +1,7 @@
 
 import afrl.cmasi.AirVehicleState;
 import afrl.cmasi.Location3D;
+import mil.afrl.amase.util.CmasiNavUtils;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -18,9 +19,10 @@ public class FuelState {
     
     private float timeSafetyNet = 40;
     private float upperThreshold = 99;
+    private float batteryBuffer = 5; //percentage battery we pretend we don't have
 
     public void Update(AirVehicleState vehState, UAV uav, Location3D closestRefuel) {
-        remaining = vehState.getEnergyAvailable();
+        remaining = vehState.getEnergyAvailable() - 5;
         if(NeedToRefuel(uav, closestRefuel)) requiresRefuel = true;
         if(remaining >= upperThreshold) requiresRefuel = false;
     }
@@ -29,18 +31,20 @@ public class FuelState {
         double timeToBase = TimeToBase(uav, closestRefuel);
         
         double fuelTimeRemaining = FlightTimeRemaining(uav);
-        
-        return (timeToBase + 40 < fuelTimeRemaining);
+        if(timeToBase + 40 > fuelTimeRemaining) {
+            System.out.println("Need to refuel: " + timeToBase + ", " + fuelTimeRemaining);
+        }
+        return (timeToBase + 40 > fuelTimeRemaining);
     }
     
     public double TimeToBase(UAV uav, Location3D closestRefuel) {
-        return FireZoneController.distance(uav.airVehicleState.getLocation(), closestRefuel) / uav.airVehicleState.getAirspeed();
+        return CmasiNavUtils.distance(uav.airVehicleState.getLocation(), closestRefuel) / uav.airVehicleState.getAirspeed();
     }
     
     public double FlightTimeRemaining(UAV uav) {
         double consumptionRate = uav.airVehicleState.getActualEnergyRate();
         
-        return  uav.airVehicleState.getEnergyAvailable() / consumptionRate;
+        return  remaining / consumptionRate;
     }
     
     public double FlightDistanceRemaining(UAV uav) {
@@ -48,9 +52,7 @@ public class FuelState {
         return uav.airVehicleState.getAirspeed() * FlightTimeRemaining(uav);
     }
     
-    public double TimeToRefuelRemaining(UAV uav) {
-        double flightTimeRemaining = FlightTimeRemaining(uav);
-        
+    public double TimeToRefuelRemaining(UAV uav) {        
         return FlightTimeRemaining(uav) - timeSafetyNet;
     }
 }
