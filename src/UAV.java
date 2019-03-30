@@ -103,9 +103,8 @@ public class UAV {
         long wpID = main.getNextWaypointID();
         Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
         targets.add(wp);
-//        MoveToWayPoint(targets, wpID);
-//        LoiterAtPoint(wp, closest);        
-LoiterHere();
+        
+        MoveToWayPoint(targets, wpID);
     }
     
     /**
