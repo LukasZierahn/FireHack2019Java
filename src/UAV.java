@@ -100,24 +100,15 @@ public class UAV {
             }
         }
 
+        if(closest == null) return;
+
         List<Waypoint> targets = new ArrayList<Waypoint>();
         long wpID = main.getNextWaypointID();
-        targets.add(CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort));
-        MoveToWayPoint(targets, wpID);
-        
-        /*LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
-        LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 1000, targetSpeed, closest);
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        o.getVehicleActionList().add(loiterAction);
-
-
-        try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }*/
+        Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
+        targets.add(wp);
+//        MoveToWayPoint(targets, wpID);
+//        LoiterAtPoint(wp, closest);
+LoiterHere();
     }
     
     /**
@@ -129,15 +120,9 @@ public class UAV {
         return fuelState.requiresRefuel;
     }
 
-
     public void MoveToWayPoint(List<Waypoint> route, long startID) {
+        MissionCommand o = WrapInMission(route, startID);
         currentTask = UAVTASKS.PATROL;
-
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        o.getWaypointList().addAll(route);
-        o.setFirstWaypoint(startID);
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
@@ -146,17 +131,46 @@ public class UAV {
         }
     }
 
-    public void MoveToWayPoint(Waypoint route) {
-        currentTask = UAVTASKS.PATROL;
-
+    public MissionCommand WrapInMission(List<Waypoint> route, long startID) {
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
-        o.getWaypointList().add(route);
-        o.setFirstWaypoint(route.getNumber());
+        o.getWaypointList().addAll(route);
+        o.setFirstWaypoint(startID);
+        return o;
+    }
+
+    public void MoveToWayPoint(Waypoint route) {
+        ArrayList<Waypoint> routeWrapper = new ArrayList<Waypoint>();
+        routeWrapper.add(route);
+        MoveToWayPoint(routeWrapper, route.getNumber());
+    }
+
+    public void LoiterHere() {
+        LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
+        LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 35000, targetSpeed, airVehicleState.getLocation());
+        VehicleActionCommand vehAction = new VehicleActionCommand(main.getNextCommandID(), airVehicleState.getID(), CommandStatusType.Pending);
+        vehAction.getVehicleActionList().add(loiterAction);
 
         try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(vehAction, true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void LoiterAtPoint(Waypoint route, Location3D loiterPoint) {
+        LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
+        LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 35000, targetSpeed, loiterPoint);
+
+        List<Waypoint> routeWrapper = new ArrayList<Waypoint>();
+        routeWrapper.add(route);
+
+        MissionCommand mission = WrapInMission(routeWrapper, route.getNumber());
+        mission.getVehicleActionList().add(loiterAction);
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(mission, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
