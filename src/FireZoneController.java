@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static java.lang.Math.abs;
+import static java.lang.Math.min;
 import static java.lang.Math.pow;
 
 public class FireZoneController {
@@ -24,7 +25,7 @@ public class FireZoneController {
     private List<Location3D> estimatedHazardZone = new ArrayList<>();
     private List<Long> hazardZoneTimes = new ArrayList<>();
 
-    boolean hasQuad = false;
+    private int QuadCount = 0;
 
     private Location3D center = null;
     private float averageDistance = -1; //this is actually the square of the average distance
@@ -40,28 +41,32 @@ public class FireZoneController {
                 main.getUAV(ID).fireZoneController = this;
 
                 main.getUAV(ID).FollowEdge(true);
-                hasQuad = true;
+                QuadCount++;
                 break;
             }
         }
 
         //System.out.println(main.getUAVMap());
 
-        if (!hasQuad) {
-            for (UAV uav : main.getUAVMap().values()) {
-                if ((!uav.fixedWing) && uav.fireZoneController == null && (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
-                    hasQuad = true;
-                    committedUAVS.add(uav.airVehicleState.getID());
-                    uav.fireZoneController = this;
-                    ChaseFire(uav);
-                    break;
-                }
-            }
-        }
-
+        FindQuads(1);
 
         zoneIDCounter++;
         zoneID = zoneIDCounter;
+    }
+
+    public void FindQuads (int quads) {
+            for (UAV uav : main.getUAVMap().values()) {
+                if ((!uav.fixedWing) && uav.fireZoneController == null && (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
+                    if (quads < QuadCount) {
+                        UAVMap.put(uav.airVehicleState.getID(), uav);
+                        uav.fireZoneController = this;
+                        ChaseFire(uav);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
     }
 
     public void ChaseFire(UAV uav) {
@@ -93,123 +98,31 @@ public class FireZoneController {
         }
     }
 
-    public boolean CheckAndMerge(FireZoneController target) {
-
-        if (Check(target)) {
-            Merge(target);
-
-            center = null;
-            averageDistance = -1;
-
-            UAVMap.putAll(target.UAVMap);
-            for (UAV uav : UAVMap.values()) {
-                uav.fireZoneController = this;
-            }
-
-            return true;
-        }
-        return false;
-    }
-
-    private boolean Check(FireZoneController target) {
-
-        //System.out.println(getCenter().getLatitude() + " " + getCenter().getLongitude() + " " + getAverageDistance());
-        for (Location3D location : target.estimatedHazardZone) {
-            if (averageDistance > (pow(location.getLatitude() - getCenter().getLatitude(), 2) + pow(location.getLongitude() - getCenter().getLongitude(), 2))) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void Merge(FireZoneController target) {
-        List<Location3D> bufferEstimatedHazardZone = new ArrayList<>();
-        List<Long> bufferHazardZoneTimes = new ArrayList<>();
-
-
-        int cut = 0;
-        for (int i = 0; i < target.estimatedHazardZone.size(); i++) {
-            if (averageDistance <= (pow(target.estimatedHazardZone.get(i).getLatitude() - getCenter().getLatitude(), 2) + pow(target.estimatedHazardZone.get(i).getLongitude() - getCenter().getLongitude(), 2))) {
-                bufferEstimatedHazardZone.add(target.estimatedHazardZone.get(i));
-                bufferHazardZoneTimes.add(target.hazardZoneTimes.get(i));
-                cut = i;
-            } else {
-                break;
-            }
-        }
-
-        boolean cutOne = false;
-        for (int i = 0; i < estimatedHazardZone.size(); i++) {
-            if (target.getAverageDistance() <= (pow(estimatedHazardZone.get(i).getLatitude() - target.getCenter().getLatitude(), 2) + pow(estimatedHazardZone.get(i).getLongitude() - target.getCenter().getLongitude(), 2))) {
-                if (cutOne) {
-                    bufferEstimatedHazardZone.add(estimatedHazardZone.get(i));
-                    bufferHazardZoneTimes.add(hazardZoneTimes.get(i));
-                }
-            } else {
-                cutOne = true;
-            }
-        }
-
-        for (int i = 0; i < estimatedHazardZone.size(); i++) {
-            if (target.getAverageDistance() <= (pow(estimatedHazardZone.get(i).getLatitude() - target.getCenter().getLatitude(), 2) + pow(estimatedHazardZone.get(i).getLongitude() - target.getCenter().getLongitude(), 2))) {
-                bufferEstimatedHazardZone.add(estimatedHazardZone.get(i));
-                bufferHazardZoneTimes.add(hazardZoneTimes.get(i));
-            } else {
-                break;
-            }
-        }
-
-        for (int i = cut; i < target.estimatedHazardZone.size(); i++) {
-            if (averageDistance <= (pow(target.estimatedHazardZone.get(i).getLatitude() - getCenter().getLatitude(), 2) + pow(target.estimatedHazardZone.get(i).getLongitude() - getCenter().getLongitude(), 2))) {
-                bufferEstimatedHazardZone.add(target.estimatedHazardZone.get(i));
-                bufferHazardZoneTimes.add(target.hazardZoneTimes.get(i));
-            }
-        }
-        estimatedHazardZone = bufferEstimatedHazardZone;
-        hazardZoneTimes = bufferHazardZoneTimes;
-    }
-
-    public Location3D getCenter() {
-        if (center != null) {
-            return center;
-        }
-
-        center = new Location3D();
-        for (Location3D point : estimatedHazardZone) {
-            center.setLatitude(center.getLatitude() + point.getLatitude());
-            center.setLongitude(center.getLongitude() + point.getLongitude());
-        }
-
-        center.setLatitude(center.getLatitude() / estimatedHazardZone.size());
-        center.setLongitude(center.getLongitude() / estimatedHazardZone.size());
-
-        return center;
-    }
-
-    public float getAverageDistance() {
-        if (averageDistance != -1) {
-            return averageDistance;
-        }
-
-        averageDistance = 0.0f;
-        for (Location3D point : estimatedHazardZone) {
-            averageDistance += pow(point.getLatitude() - getCenter().getLatitude(), 2) + pow(point.getLongitude() - getCenter().getLongitude(), 2);
-        }
-
-        averageDistance = averageDistance / estimatedHazardZone.size();
-
-        averageDistance = averageDistance * 10;
-
-        return averageDistance;
-    }
-
     public void SendInHazardZone() {
 
         Polygon polygon = new Polygon();
         for (Location3D point : estimatedHazardZone) {
             polygon.getBoundaryPoints().add(point);
         }
+        HazardZoneEstimateReport o = new HazardZoneEstimateReport();
+        o.setEstimatedZoneShape(polygon);
+        o.setUniqueTrackingID(zoneID);
+        o.setEstimatedGrowthRate(0);
+        o.setPerceivedZoneType(afrl.cmasi.searchai.HazardType.Fire);
+        o.setEstimatedZoneDirection(0);
+        o.setEstimatedZoneSpeed(0);
+
+        //Sending the Vehicle Action Command message to AMASE to be interpreted
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void RemoveHazardZone() {
+
+        Polygon polygon = new Polygon();
         HazardZoneEstimateReport o = new HazardZoneEstimateReport();
         o.setEstimatedZoneShape(polygon);
         o.setUniqueTrackingID(zoneID);
@@ -235,6 +148,27 @@ public class FireZoneController {
     }
 
     public void AddHazardZonePoint(Location3D point) {
+
+        List<FireZoneController> hazardZones = main.getHazardZones();
+        for (int i1 = 0; i1 < hazardZones.size(); i1++) {
+            FireZoneController FZC = hazardZones.get(i1);
+            if (FZC.zoneID == this.zoneID) {
+                continue;
+            }
+
+            for (int i = 0; i < FZC.estimatedHazardZone.size(); i++) {
+                if (0.000002 > distance(FZC.estimatedHazardZone.get(i), point)) {
+
+                    estimatedHazardZone.add(point);
+                    hazardZoneTimes.add(main.getTime());
+                    center = null;
+                    averageDistance = -1;
+                    Merge(FZC, i);
+                }
+            }
+        }
+
+
         for (int i = estimatedHazardZone.size() - 1; i >= 0; i--) {
             if (0.00002 > distance(estimatedHazardZone.get(i), point)) {
                 if (20000 < main.getTime() - hazardZoneTimes.get(i)) {
@@ -258,14 +192,14 @@ public class FireZoneController {
                 changed = false;
                 for (int i = estimatedHazardZone.size() - 1; i > 0; i--) {
                     if (hazardZoneTimes.get(i) < hazardZoneTimes.get(i - 1)) {
-                        hazardZoneTimes.remove(i - 1);
+                        RemoveHazardZonePoint(i - 1);
                         changed = true;
                         break;
                     }
                 }
             }
 
-            for (int i = 1; i < 3; i++) {
+            for (int i = 1; i < min(3, estimatedHazardZone.size()); i++) {
                 if (1.7 * distance(point, estimatedHazardZone.get(0)) < distance(point, estimatedHazardZone.get(i))) {
                     RemoveHazardZonePoint(0);
                 }
@@ -277,6 +211,41 @@ public class FireZoneController {
         center = null;
         averageDistance = -1;
     }
+
+    public void Merge(FireZoneController target, int index) {
+
+        System.out.println("Merging FZC");
+
+        if (target.estimatedHazardZone.size() >= 10) {
+            List<Location3D> bufferHazard = new ArrayList<>();
+            List<Long> bufferTimes = new ArrayList<>();
+
+            bufferHazard.addAll(estimatedHazardZone);
+            bufferTimes.addAll(hazardZoneTimes);
+
+            if (index + 1 <= target.estimatedHazardZone.size()) {
+                bufferHazard.addAll(target.estimatedHazardZone.subList(index + 1, target.estimatedHazardZone.size()));
+                bufferTimes.addAll(target.hazardZoneTimes.subList(index + 1, target.hazardZoneTimes.size()));
+            }
+
+            bufferHazard.addAll(target.estimatedHazardZone.subList(0, index));
+            bufferTimes.addAll(target.hazardZoneTimes.subList(0, index));
+
+            estimatedHazardZone = bufferHazard;
+            hazardZoneTimes = bufferTimes;
+        }
+
+        for (UAV uav : target.UAVMap.values()) {
+            uav.InitRefuelMission();
+            uav.fireZoneController = null;
+        }
+
+        target.RemoveHazardZone();
+
+        main.getHazardZones().remove(target);
+        System.out.println(main.getHazardZones().size());
+    }
+
     public void AddHazardZonePoint(Location3D point, boolean inFront) {
 
         if (inFront) {
@@ -297,8 +266,6 @@ public class FireZoneController {
         }
         center = null;
         averageDistance = -1;
-
-        System.out.println(estimatedHazardZone.toString());
     }
 
     public static double distance(Location3D location1, Location3D location2) {

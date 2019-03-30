@@ -44,7 +44,8 @@ public class UAV {
                 fixedWing = true;
                 nr = main.multi;
                 main.multi++;
-                targetSpeed = 30;
+                targetSpeed = 40;
+                targetHeight = 1500;
                 break;
             default:
                 System.out.println("Unexpected entity type: " + airVehicleConfiguration.getEntityType());

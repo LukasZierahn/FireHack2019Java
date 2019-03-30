@@ -102,17 +102,12 @@ public class Main extends Thread {
             SessionStatus msg = (SessionStatus) o;
             time = msg.getScenarioTime();
 
-            for (UAV uav : UAVMap.values()) {
-                uav.Update();
+            for (FireZoneController FZC : hazardZones) {
+                FZC.FindQuads(1);
             }
 
-            for (int i = hazardZones.size() - 1; i >= 0; --i) {
-                for (int j = i - 1; j >= 0; --j) {
-                    if (hazardZones.get(j).CheckAndMerge(hazardZones.get(i))) {
-                        System.out.println("Merged one");
-                        hazardZones.remove(i);
-                    }
-                }
+            for (UAV uav : UAVMap.values()) {
+                uav.Update();
             }
 
         } else if (o instanceof AirVehicleConfiguration) {
@@ -124,7 +119,7 @@ public class Main extends Thread {
 
             UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
 
-            if (!uav.fixedWing || (uav.fixedWing && !uav.HasSeenFire() && uav.currentTask != UAVTASKS.FLYTHROUGH)) {
+            if ((!uav.fixedWing || (!uav.HasSeenFire() && uav.currentTask != UAVTASKS.FLYTHROUGH)) && uav.currentTask != UAVTASKS.REFUEL) {
                 if (uav.fireZoneController == null) {
 
                     List<Long> UAVS = new ArrayList<>();
@@ -184,6 +179,10 @@ public class Main extends Thread {
 
     public FireMap getFireMap() {
         return fireMap;
+    }
+
+    public List<FireZoneController> getHazardZones() {
+        return hazardZones;
     }
 
     /** tries to connect to the server.  If there is a problem (such as the server not running yet) it
