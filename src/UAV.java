@@ -24,7 +24,7 @@ public class UAV {
     protected float targetHeight = 700;
 
     protected FuelState fuelState = new FuelState();
-    protected ArrayList<Location3D> refuelPoints = new ArrayList<Location3D>();
+    protected ArrayList<Location3D> refuelPoints = new ArrayList<>();
 
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
         this.main = main;
@@ -119,6 +119,7 @@ LoiterHere();
 
     public void MoveToWayPoint(List<Waypoint> route, long startID) {
         MissionCommand o = WrapInMission(route, startID);
+        currentTask = UAVTASKS.PATROL;
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
@@ -165,6 +166,16 @@ LoiterHere();
         MissionCommand mission = WrapInMission(routeWrapper, route.getNumber());
         mission.getVehicleActionList().add(loiterAction);
         
+
+    public void MoveToWayPoint(Waypoint route) {
+        currentTask = UAVTASKS.PATROL;
+
+        MissionCommand o = new MissionCommand();
+        o.setVehicleID(airVehicleState.getID());
+        o.setCommandID(main.getNextCommandID());
+        o.getWaypointList().add(route);
+        o.setFirstWaypoint(route.getNumber());
+
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(mission, true));
         } catch (Exception e) {
