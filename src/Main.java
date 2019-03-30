@@ -9,24 +9,9 @@
 
 // This file was auto-created by LmcpGen. Modifications will be overwritten.
 
+import afrl.cmasi.*;
 import afrl.cmasi.searchai.HazardZoneDetection;
 import afrl.cmasi.searchai.HazardZoneEstimateReport;
-import afrl.cmasi.AltitudeType;
-import afrl.cmasi.CommandStatusType;
-import afrl.cmasi.GimbalStareAction;
-import afrl.cmasi.Location3D;
-import afrl.cmasi.LoiterAction;
-import afrl.cmasi.LoiterDirection;
-import afrl.cmasi.LoiterType;
-import afrl.cmasi.MissionCommand;
-import afrl.cmasi.SessionStatus;
-import afrl.cmasi.SpeedType;
-import afrl.cmasi.TurnType;
-import afrl.cmasi.VehicleAction;
-import afrl.cmasi.VehicleActionCommand;
-import afrl.cmasi.Waypoint;
-import afrl.cmasi.Polygon;
-import afrl.cmasi.Circle;
 import avtas.lmcp.LMCPFactory;
 import avtas.lmcp.LMCPObject;
 import java.io.IOException;
@@ -35,6 +20,8 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,9 +34,14 @@ public class Main extends Thread {
     private static int port = 5555;
     /** address of the server */
     private static String host = "localhost";
-    /**Array of booleans indicating if loiter command has been sent to each UAV */
-    boolean[] uavsLoiter = new boolean[4];
-    Polygon estimatedHazardZone = new Polygon();
+
+    private FireMap fireMap = null;
+
+    private Map<Long, UAV> UAVMap = new HashMap<>();
+
+    private InputStream in;
+    private OutputStream out;
+
 
     public Main() {
     }
@@ -60,9 +52,17 @@ public class Main extends Thread {
             // connect to the server
             Socket socket = connect(host, port);
 
+            in = socket.getInputStream();
+            out = socket.getOutputStream();
+
             while(true) {
                 //Continually read the LMCP messages that AMASE is sending out
-                readMessages(socket.getInputStream(), socket.getOutputStream());
+                try {
+                    readMessages();
+                } catch (Exception e) {
+                    System.out.println("Error while reading messages");
+                    e.printStackTrace();
+                }
             }
 
         } catch (Exception ex) {
@@ -70,96 +70,20 @@ public class Main extends Thread {
         }
     }
 
-    /**
-     * Sends loiter command to the AMASE Server
-     * @param out
-     * @throws Exception 
-     */
-    public void sendLoiterCommand (OutputStream out, long vehicleId , Location3D location) throws Exception {
-        //Setting up the mission to send to the UAV
-         VehicleActionCommand o = new VehicleActionCommand();
-         o.setVehicleID(vehicleId);
-         o.setStatus(CommandStatusType.Pending);
-         o.setCommandID(1);
-         
-         //Setting up the loiter action
-         LoiterAction loiterAction = new LoiterAction();
-         loiterAction.setLoiterType(LoiterType.Circular);
-         loiterAction.setRadius(250);
-         loiterAction.setAxis(0);
-         loiterAction.setLength(0);
-         loiterAction.setDirection(LoiterDirection.Clockwise);
-         loiterAction.setDuration(100000);
-         loiterAction.setAirspeed(15);
-         
-         //Creating a 3D location object for the stare point
-         loiterAction.setLocation(location);
-         
-         //Adding the loiter action to the vehicle action list
-         o.getVehicleActionList().add(loiterAction);
-         
-         //Sending the Vehicle Action Command message to AMASE to be interpreted
-         out.write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-    }
 
-    /**
-     * Sends loiter command to the AMASE Server
-     * @param out
-     * @throws Exception
-     */
-    public void sendEstimateReport(OutputStream out, Polygon estimatedShape) throws Exception {
-        //Setting up the mission to send to the UAV
-        HazardZoneEstimateReport o = new HazardZoneEstimateReport();
-        o.setEstimatedZoneShape(estimatedShape);
-        o.setUniqueTrackingID(1);
-        o.setEstimatedGrowthRate(0);
-        o.setPerceivedZoneType(afrl.cmasi.searchai.HazardType.Fire);
-        o.setEstimatedZoneDirection(0);
-        o.setEstimatedZoneSpeed(0);
+    public void readMessages() throws Exception {
 
-
-        //Sending the Vehicle Action Command message to AMASE to be interpreted
-        out.write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-    }
-
-    /**
-    * Reads in messages being sent out by the AMASE Server
-    */
-    public void readMessages(InputStream in, OutputStream out) throws Exception {
-        //Use each of the if statements to use the incoming message
         LMCPObject o = LMCPFactory.getObject(in);
-        //Check if the message is a HazardZoneDetection
-        if (o instanceof afrl.cmasi.searchai.HazardZoneDetection) {
-            HazardZoneDetection hazardDetected = ((HazardZoneDetection) o);
-            //Get location where zone first detected
-            Location3D detectedLocation = hazardDetected.getDetectedLocation();
-            //Get entity that detected the zone
-            int detectingEntity = (int) hazardDetected.getDetectingEnitiyID();
-
-            //Check if hint
-            if (detectingEntity == 0) {
-                //Do nothing for now, hints will be added later
-                return;
-            }
-
-            //Check if the UAV has already been sent the loiter command and proceed if it hasn't
-            if (uavsLoiter[detectingEntity - 1] == false) {
-                //Send the loiter command
-                sendLoiterCommand(out, detectingEntity, detectedLocation);
-
-                //Note: Polygon points must be in clockwise or counter-clockwise order to get a shape without intersections
-                estimatedHazardZone.getBoundaryPoints().add(detectedLocation);
-
-                //Send out the estimation report to draw the polygon
-                sendEstimateReport(out, estimatedHazardZone);
-
-                uavsLoiter[detectingEntity - 1] = true;
-                System.out.println("UAV" + detectingEntity + " detected hazard at " + detectedLocation.getLatitude() +
-                        "," + detectedLocation.getLongitude() + ". Sending loiter command.");
-            }
+        if (o instanceof KeepInZone) {
+            fireMap = new FireMap(this, (KeepInZone) o);
+        } else if (o instanceof AirVehicleState) {
+            AirVehicleState msg = (AirVehicleState) o;
+            UAVMap.get(msg.getID()).airVehicleState = msg;
+            fireMap.HandleAirVehicleState(msg);
+        } else if (o instanceof AirVehicleConfiguration) {
+            UAVMap.put(((AirVehicleConfiguration) o).getID(), new UAV((AirVehicleConfiguration)o));
         }
     }
-
 
     /** tries to connect to the server.  If there is a problem (such as the server not running yet) it
      *  pauses, then tries again.  If the server quits and restarts, this method is called by the thread
