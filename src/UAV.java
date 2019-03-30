@@ -109,6 +109,8 @@ public class UAV {
         MoveToWayPoint(targets, wpID);
         //LoiterAtPoint(wp, closest);
         //LoiterHere();
+
+        MoveToWayPoint(targets, wpID);
     }
     
     /**
@@ -223,9 +225,6 @@ public class UAV {
     }
 
     public void FollowEdge(Boolean clockwise) {
-
-        System.out.println(airVehicleState.getID());
-
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
