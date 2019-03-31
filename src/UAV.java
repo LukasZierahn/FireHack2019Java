@@ -61,7 +61,7 @@ public class UAV {
     public void Update() {
 
         if(start) {
-            RandomMovement();
+            DoRoute();
         }
 
         if(UpdateFuel() && !refuelPoints.isEmpty()) {
@@ -99,6 +99,18 @@ public class UAV {
         }*/
     }
 
+    public void DoRoute() {
+        if(!fixedWing) {
+            RandomMovement();
+        } else{
+            currentTask = UAVTASKS.PATROL;
+            Route route = main.getRouteManager().GetNextRouteFor(this, main);
+            MoveToWayPoint(route.toWaypointList(), route.getFirstWaypointNumber());
+        }
+
+        start = false;
+    }
+
     public void RandomMovement() {
         currentTask = UAVTASKS.PATROL;
         FlightDirectorAction msg = new FlightDirectorAction();
@@ -119,8 +131,6 @@ public class UAV {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        start = false;
     }
 
     public void InitRefuelMission() {
