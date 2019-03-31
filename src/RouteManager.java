@@ -20,9 +20,13 @@ public class RouteManager {
     public RouteManager(FireMap firemap) {
         this.firemap = firemap;
         
+        routes.add(CreateSquareRoute(0.1f));
+        routes.add(CreateSquareRoute(0.15f));
         routes.add(CreateSquareRoute(0.2f));
+        routes.add(CreateSquareRoute(0.25f));
+        routes.add(CreateSquareRoute(0.3f));
+        routes.add(CreateSquareRoute(0.35f));
         routes.add(CreateSquareRoute(0.4f));
-        routes.add(CreateSquareRoute(0.5f));
     }
     
     private Route CreateSquareRoute(float scale) {
