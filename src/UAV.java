@@ -344,7 +344,7 @@ public class UAV {
         }
 
         FlightDirectorAction msg = new FlightDirectorAction();
-        msg.setSpeed(targetSpeed);
+        msg.setSpeed(20);
         msg.setAltitudeType(AltitudeType.MSL);
         msg.setAltitude(700);
         msg.setClimbRate(0);
