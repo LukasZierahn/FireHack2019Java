@@ -63,7 +63,7 @@ public class UAV {
     public void Update() {
 
         if(start) {
-            RandomMovement();
+            DoRoute();
         }
 
         if(UpdateFuel()) {
@@ -75,7 +75,6 @@ public class UAV {
             }
         } else {
             if(currentTask == UAVTASKS.REFUEL) {
-                System.out.println("UAV done refuelling, adding to store");
                 RandomMovement();
                 main.getDroneStore().AddToStore(this);
             }
@@ -100,6 +99,18 @@ public class UAV {
             }
         }*/
     }
+    
+    public void DoRoute() {
+        if(!fixedWing) {
+            RandomMovement();
+        } else{
+            currentTask = UAVTASKS.PATROL;
+            Route route = main.getRouteManager().GetNextRouteFor(this, main);
+            MoveToWayPoint(route.toWaypointList(), route.getFirstWaypointNumber());
+        }
+
+        start = false;
+    }
 
     public void RandomMovement() {
         currentTask = UAVTASKS.PATROL;
@@ -121,8 +132,6 @@ public class UAV {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        start = false;
     }
 
     public void InitRefuelMission() {

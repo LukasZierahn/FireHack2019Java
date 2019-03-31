@@ -3,7 +3,9 @@ import afrl.cmasi.AltitudeType;
 import afrl.cmasi.Location3D;
 import afrl.cmasi.TurnType;
 import afrl.cmasi.Waypoint;
+import java.util.AbstractList;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 
@@ -11,26 +13,30 @@ public class Route {
     private List<Waypoint> waypoints = new ArrayList<Waypoint>();
     private long lastAssigned;
     private long lastRelased;
-    public int activeDrones = 0;
-        
+    private List<UAV> activeDrones = new ArrayList<UAV>();
+    
     public Route(List<Location3D> locations, float speed, TurnType turnType) {
         for(Location3D location : locations) {
-            waypoints.add(Route.CreateWaypoint(location.getLatitude(),
+            waypoints.add(
+                Route.CreateWaypoint(
+                    location.getLatitude(),
                     location.getLongitude(),
                     location.getAltitude(),
                     location.getAltitudeType(),
                     RouteManager.getNextWaypointId(),
                     speed,
-                    turnType));
+                    turnType
+                ));
         }
         
+        System.out.println("Route.<init>()");
         //join up the waypoints in a 
         for(int i = 0; i < waypoints.size(); i++){
             Waypoint waypoint = waypoints.get(i);
             if(i == waypoints.size()-1) {
-                waypoint.setNextWaypoint(0);
+                waypoint.setNextWaypoint(waypoints.get(0).getNumber());
             }else{
-                waypoint.setNextWaypoint(i+1);
+                waypoint.setNextWaypoint(waypoints.get(i+1).getNumber());
             }
         }
     }
@@ -40,13 +46,25 @@ public class Route {
             waypoint.setSpeed(uav.targetSpeed);
         }
         uav.MoveToWayPoint(waypoints, waypoints.get(0).getNumber());
-        activeDrones++;
+        activeDrones.add(uav);
         lastAssigned = main.getTime();
+    }
+    
+    public long getFirstWaypointNumber() {
+        return waypoints.get(0).getNumber();
+    }
+    
+    public List<Waypoint> toWaypointList() {
+        return waypoints;
     }
     
     public void UnassignDrone(UAV uav, Main main) {
         lastRelased = main.getTime();
-        activeDrones--;
+        activeDrones.add(uav);
+    }
+    
+    public boolean DroneOnRoute(UAV uav) {
+        return activeDrones.contains(uav);
     }
     
     public static Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
@@ -63,8 +81,9 @@ public class Route {
         return waypoint1;
     }
     
-    public float RouteRequiredScore(Main main) {
-        long score = (main.getTime() - lastAssigned) + (main.getTime() - lastRelased);
-        return score;
+    public long UrgencyScore(Main main) {
+        long score = (main.getTime() - lastAssigned);
+        System.out.println("Route.UrgencyScore() " + activeDrones.size());
+        return score - activeDrones.size();
     }
 }

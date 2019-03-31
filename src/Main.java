@@ -60,7 +60,7 @@ public class Main extends Thread {
 
     private long time;
     
-
+    private RouteManager routeManager;
 
     public Main() {
     }
@@ -101,6 +101,7 @@ public class Main extends Thread {
         if (o instanceof KeepInZone) {
             if (fireMap == null) {
                 fireMap = new FireMap(this, (KeepInZone) o);
+                routeManager = new RouteManager(fireMap);
             }
 
         } else if (o instanceof AirVehicleState) {
@@ -185,6 +186,10 @@ public class Main extends Thread {
 
     public long getNextWaypointID() {
         return waypointID++;
+    }
+    
+    public RouteManager getRouteManager() {
+        return routeManager;
     }
 
     public OutputStream getOut() {
