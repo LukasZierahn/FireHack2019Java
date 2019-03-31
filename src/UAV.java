@@ -2,7 +2,6 @@ import afrl.cmasi.*;
 import java.util.ArrayList;
 
 import java.util.List;
-import sun.jvm.hotspot.debugger.cdbg.ClosestSymbol;
 
 import static java.lang.Math.random;
 
@@ -33,7 +32,6 @@ public class UAV {
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
         this.main = main;
         this.airVehicleConfiguration = airVehicleConfiguration;
-        currentTask = UAVTASKS.NO_TASK;
 
         switch (airVehicleConfiguration.getEntityType()) {
             case "":
@@ -66,7 +64,7 @@ public class UAV {
             RandomMovement();
         }
 
-        if(UpdateFuel()) {
+        if(UpdateFuel() && !refuelPoints.isEmpty()) {
             if(refuelPoints.isEmpty()) {
                 System.out.println("WARNING - Drone needs fuel but has no refuel position");
             } else {
@@ -74,7 +72,7 @@ public class UAV {
                 InitRefuelMission();
             }
         } else {
-            if(currentTask == UAVTASKS.REFUEL) {
+            if(currentTask == UAVTASKS.REFUEL && 0.0002 > FireZoneController.distance(airVehicleState.getLocation(), ClosestRefuelStation())) {
                 System.out.println("UAV done refuelling, adding to store");
                 RandomMovement();
                 main.getDroneStore().AddToStore(this);
@@ -87,7 +85,7 @@ public class UAV {
         } else if (currentTask == UAVTASKS.FLYTHROUGH) {
             if (!HasSeenFire()) {
                 currentTask = UAVTASKS.NO_TASK;
-                fireZoneController.AddHazardZonePoint(airVehicleState.getLocation(), true);
+                fireZoneController.InsertHazardPoint(airVehicleState.getLocation(), 0, -1);
                 fireZoneController = null;
                 //TODO:Ask the fire zone controller to give us a new job
 
@@ -117,7 +115,7 @@ public class UAV {
         o.getVehicleActionList().add(msg);
 
         try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+            //main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
