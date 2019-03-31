@@ -70,7 +70,7 @@ public class FireZoneController {
         uav.currentTask = UAVTASKS.CHASING_FIRE;
 
         List<Waypoint> target = new ArrayList<>();
-        target.add(uav.CreateWaypoint(estimatedHazardZone.get(0).getLatitude(), estimatedHazardZone.get(0).getLongitude(),  uav.targetHeight, AltitudeType.MSL, main.getNextWaypointID(),  30, TurnType.FlyOver));
+        target.add(Route.CreateWaypoint(estimatedHazardZone.get(0).getLatitude(), estimatedHazardZone.get(0).getLongitude(),  uav.targetHeight, AltitudeType.MSL, main.getNextWaypointID(),  30, TurnType.FlyOver));
 
         uav.MoveToWayPoint(target.get(0));
     }

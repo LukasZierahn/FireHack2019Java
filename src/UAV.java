@@ -131,7 +131,7 @@ public class UAV {
 
         List<Waypoint> targets = new ArrayList<Waypoint>();
         long wpID = main.getNextWaypointID();
-        Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
+        Waypoint wp = Route.CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
         targets.add(wp);
         
         MoveToWayPoint(targets, wpID);
@@ -249,20 +249,6 @@ public class UAV {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
-        Waypoint waypoint1 = new Waypoint();
-        waypoint1.setLatitude(lat);
-        waypoint1.setLongitude(lon);
-        waypoint1.setAltitude(altitude);
-        waypoint1.setAltitudeType(altType);
-        //Setting unique ID for the waypoint
-        waypoint1.setNumber(number);
-        //Setting speed to reach the waypoint
-        waypoint1.setSpeed(speed);
-        waypoint1.setTurnType(turnType);
-        return waypoint1;
     }
     
     private LoiterAction CreateLoiter(LoiterType loiterType, float radius, float axis, int length, LoiterDirection direction, long duration, float speed, Location3D location){
