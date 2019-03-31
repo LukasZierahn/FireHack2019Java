@@ -132,7 +132,7 @@ public class UAV {
         o.getVehicleActionList().add(msg);
 
         try {
-            //main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
