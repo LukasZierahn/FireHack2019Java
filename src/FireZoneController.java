@@ -52,7 +52,7 @@ public class FireZoneController {
 
         //System.out.println(main.getUAVMap());
 
-        FindQuads(1, firstContact);
+        FindQuads(2, firstContact);
 
         zoneIDCounter++;
         zoneID = zoneIDCounter;
