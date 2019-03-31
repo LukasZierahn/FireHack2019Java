@@ -21,7 +21,7 @@ public class UAV {
     public boolean fixedWing;
     public int nr = 0; //nr denotes which fixedWing (respectively multi) nr this has
 
-    protected float targetSpeed;
+    public float targetSpeed;
     protected float targetHeight = 700;
 
     protected FuelState fuelState = new FuelState();
@@ -141,6 +141,11 @@ public class UAV {
     public void InitRefuelMission() {
         currentTask = UAVTASKS.REFUEL;
         Location3D closest = ClosestRefuelStation();
+
+        if (fireZoneController != null) {
+            fireZoneController.UAVMap.remove(this);
+            fireZoneController = null;
+        }
 
         List<Waypoint> targets = new ArrayList<Waypoint>();
         long wpID = main.getNextWaypointID();
@@ -349,7 +354,7 @@ public class UAV {
         }
 
         FlightDirectorAction msg = new FlightDirectorAction();
-        msg.setSpeed(20);
+        msg.setSpeed(targetSpeed);
         msg.setAltitudeType(AltitudeType.MSL);
         msg.setAltitude(700);
         msg.setClimbRate(0);

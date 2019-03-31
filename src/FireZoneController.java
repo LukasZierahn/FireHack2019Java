@@ -26,7 +26,7 @@ public class FireZoneController {
 
     private Main main;
 
-    private Map<Long, UAV> UAVMap = new HashMap<>();
+    public Map<Long, UAV> UAVMap = new HashMap<>();
 
     private List<EstimatePoint> estimatedHazardZone = new ArrayList<>();
     private Map<Long, List<EstimatePoint>> HazardZoneByDrones = null;
@@ -115,6 +115,18 @@ public class FireZoneController {
 
             if (uav.currentTask == UAVTASKS.CHASING_FIRE) {
                 uav.FollowEdge(true);
+            } else {
+                float mean = 0;
+
+                for (List<EstimatePoint> list : getHazardZoneByDrones().values()) {
+                    mean += list.size();
+                }
+                mean = mean / getHazardZoneByDrones().size();
+
+                if (getHazardZoneByDrones().get(msg.getDetectingEnitiyID()).size() >= mean) {
+                    uav.targetSpeed = 10 + (10 / (1.0f * getHazardZoneByDrones().get(msg.getDetectingEnitiyID()).size() - mean));
+
+                }
             }
         }
     }
