@@ -41,7 +41,7 @@ public class UAV {
                 fixedWing = false;
                 nr = main.fixedWings;
                 main.fixedWings++;
-                targetSpeed = 25;
+                targetSpeed = 20;
                 break;
             case "FixedWing":
                 fixedWing = true;
@@ -77,6 +77,11 @@ public class UAV {
                 RandomMovement();
                 main.getDroneStore().AddToStore(this);
             }
+        }
+        
+        Route currRoute = main.getRouteManager().GetRouteWithDrone(this);
+        if(currRoute != null && currentTask != UAVTASKS.PATROL) {
+            currRoute.UnassignDrone(this, main);
         }
         
         if (currentTask == UAVTASKS.FOLLOW_EDGE_CLOCKWISE || currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
