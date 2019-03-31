@@ -49,6 +49,7 @@ public class Main extends Thread {
 
     private Map<Long, UAV> UAVMap = new HashMap<>();
     private Map<Long, UAVTASKS> UAVTasks = new HashMap<>();
+    private DroneStore droneStore = new DroneStore();
 
     private List<FireZoneController> hazardZones = new ArrayList<>();
 
@@ -58,6 +59,7 @@ public class Main extends Thread {
     private OutputStream out;
 
     private long time;
+    
 
 
     public Main() {
@@ -90,6 +92,10 @@ public class Main extends Thread {
 
 
     public void readMessages() throws Exception {
+        
+        // Every time we receive a message we clean the drone store
+        // This helps remove drones are refuelling
+        droneStore.Clean();
 
         LMCPObject o = LMCPFactory.getObject(in);
         if (o instanceof KeepInZone) {
@@ -105,7 +111,8 @@ public class Main extends Thread {
 
             Point2D pos = fireMap.Location3DToCoord(uav.airVehicleState.getLocation());
 
-            if (pos.getX() < 50 || pos.getX() > fireMap.width - 50 || pos.getY() < 50 || pos.getY() > fireMap.height - 50) {
+            int boundaryLimit = 500;
+            if (pos.getX() < boundaryLimit || pos.getX() > fireMap.width - boundaryLimit || pos.getY() < boundaryLimit || pos.getY() > fireMap.height - boundaryLimit) {
                 uav.InitRefuelMission();
             }
 
@@ -116,7 +123,7 @@ public class Main extends Thread {
             time = msg.getScenarioTime();
 
             for (FireZoneController FZC : hazardZones) {
-                FZC.FindQuads(1);
+                FZC.RequisitionUpToMaxDrones();
             }
 
             for (UAV uav : UAVMap.values()) {
@@ -126,7 +133,9 @@ public class Main extends Thread {
             UAVTaskOutput();
 
         } else if (o instanceof AirVehicleConfiguration) {
-            UAVMap.put(((AirVehicleConfiguration) o).getID(), new UAV( this, (AirVehicleConfiguration) o));
+            UAV newUav = new UAV( this, (AirVehicleConfiguration) o);
+            UAVMap.put(((AirVehicleConfiguration) o).getID(), newUav);
+            droneStore.AddToStore(newUav);
             UAVTasks.put(((AirVehicleConfiguration) o).getID(), UAVTASKS.NO_TASK);
 
         } else if (o instanceof HazardZoneDetection) {
@@ -137,6 +146,8 @@ public class Main extends Thread {
 
             if ((!uav.fixedWing || (!uav.HasSeenFire() && uav.currentTask != UAVTASKS.FLYTHROUGH)) && uav.currentTask != UAVTASKS.REFUEL) {
                 if (uav.fireZoneController == null) {
+                     // We've bumped into a firezone in the wild, remove this drone from the store if present, and manually requisition for mapping
+                    droneStore.RemoveFromStore(uav);
 
                     List<Long> UAVS = new ArrayList<>();
                     UAVS.add(msg.getDetectingEnitiyID());
@@ -190,6 +201,10 @@ public class Main extends Thread {
 
     public Map<Long, UAV> getUAVMap() {
         return UAVMap;
+    }
+    
+    public DroneStore getDroneStore() {
+        return droneStore;
     }
 
     public long getTime() {

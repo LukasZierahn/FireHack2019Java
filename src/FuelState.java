@@ -18,13 +18,13 @@ public class FuelState {
     public boolean requiresRefuel = false;
     
     private float timeSafetyNet = 40;
-    private float upperThreshold = 99;
+    private float upperThreshold = 98;
     private float batteryBuffer = 5; //percentage battery we pretend we don't have
 
     public void Update(AirVehicleState vehState, UAV uav, Location3D closestRefuel) {
         remaining = vehState.getEnergyAvailable() - 5;
         if(NeedToRefuel(uav, closestRefuel)) requiresRefuel = true;
-        if(remaining >= upperThreshold) requiresRefuel = false;
+        if(remaining + batteryBuffer >= upperThreshold) requiresRefuel = false;
     }
     
     public boolean NeedToRefuel(UAV uav, Location3D closestRefuel) {

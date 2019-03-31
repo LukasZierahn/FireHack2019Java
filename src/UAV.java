@@ -71,17 +71,15 @@ public class UAV {
                 System.out.println("WARNING - Drone needs fuel but has no refuel position");
             } else {
                 if(currentTask == UAVTASKS.REFUEL) return;
-                currentTask = UAVTASKS.REFUEL;
                 InitRefuelMission();
             }
         } else {
             if(currentTask == UAVTASKS.REFUEL) {
-                currentTask = UAVTASKS.NO_TASK;
+                System.out.println("UAV done refuelling, adding to store");
+                RandomMovement();
+                main.getDroneStore().AddToStore(this);
             }
         }
-        
-        //Add initial position as refuel point
-        if(refuelPoints.isEmpty()) refuelPoints.add(airVehicleState.getLocation());
         
         if (currentTask == UAVTASKS.FOLLOW_EDGE_CLOCKWISE || currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
             UpdateFollow();
@@ -104,6 +102,7 @@ public class UAV {
     }
 
     public void RandomMovement() {
+        currentTask = UAVTASKS.PATROL;
         FlightDirectorAction msg = new FlightDirectorAction();
         msg.setSpeed(targetSpeed);
         msg.setAltitudeType(AltitudeType.MSL);
@@ -127,7 +126,7 @@ public class UAV {
     }
 
     public void InitRefuelMission() {
-        
+        currentTask = UAVTASKS.REFUEL;
         Location3D closest = ClosestRefuelStation();
 
         List<Waypoint> targets = new ArrayList<Waypoint>();
@@ -162,7 +161,6 @@ public class UAV {
 
     public void MoveToWayPoint(List<Waypoint> route, long startID) {
         MissionCommand o = WrapInMission(route, startID);
-        currentTask = UAVTASKS.PATROL;
 
         GimbalScanAction cameraMsg = new GimbalScanAction();
         cameraMsg.setPayloadID(1);
@@ -179,7 +177,8 @@ public class UAV {
         //o.getVehicleActionList().add(cameraMsg);
 
         for (Waypoint wp : route) {
-            wp.getVehicleActionList().add(cameraMsg);
+            //This breaks fire mapping at the moment
+            //wp.getVehicleActionList().add(cameraMsg);
         }
 
         try {
@@ -205,6 +204,7 @@ public class UAV {
     }
 
     public void LoiterHere() {
+        // This is tempramental
         LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
         LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 35000, targetSpeed, airVehicleState.getLocation());
         VehicleActionCommand vehAction = new VehicleActionCommand(main.getNextCommandID(), airVehicleState.getID(), CommandStatusType.Pending);

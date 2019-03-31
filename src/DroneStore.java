@@ -11,8 +11,9 @@ import java.util.stream.Collectors;
  */
 public class DroneStore {
     private List<UAV> store = new ArrayList<UAV>();
-    private final Predicate<UAV> fixedWingPredicate = uav -> uav.fixedWing;
-    private final Predicate<UAV> multirotorPredicate = uav -> !uav.fixedWing;
+    private final Predicate<UAV> fixedWingPredicate = uav -> uav != null && uav.fixedWing;
+    private final Predicate<UAV> multirotorPredicate = uav -> uav != null && !uav.fixedWing;
+    private final Predicate<UAV> nonIdlePredicate = uav -> uav.currentTask != UAVTASKS.NO_TASK && uav.currentTask != UAVTASKS.STANDBY && !(uav.currentTask == UAVTASKS.PATROL && !uav.fixedWing);
     
     public boolean HaveDroneAvailable(){
         return !store.isEmpty();
@@ -23,7 +24,7 @@ public class DroneStore {
     }
     
     private UAV ExtractFromList(List<UAV> uavs) {
-        if(store.isEmpty()) return null;
+        if(uavs.isEmpty()) return null;
         UAV uav = uavs.get(0);
         uavs.remove(uav);
         return uav;
@@ -61,7 +62,7 @@ public class DroneStore {
         return store.stream().filter(predicate).collect(Collectors.toList());
     }
     
-    public UAV GetAvailableMatchingPredicateNear(Predicate<UAV> predicate, Location3D location) {
+    public UAV ExtractAvailableMatchingPredicateNear(Predicate<UAV> predicate, Location3D location) {
         List<UAV> filtered = GetAllMatchingPredicate(predicate);
         return ExtractClosestFromList(filtered, location);
     }
@@ -75,12 +76,44 @@ public class DroneStore {
         store.add(uav);
     }
     
+    public void RemoveFromStore(UAV uav) {
+        if(!store.contains(uav)) return;
+        store.remove(uav);
+    }
+    
     public UAV ExtractAvailableFixedWingNear(Location3D location) {
-        return GetAvailableMatchingPredicateNear(fixedWingPredicate, location);
+        return ExtractAvailableMatchingPredicateNear(fixedWingPredicate, location);
     }
     
     public UAV ExtractAvailableMultirotorNear(Location3D location) {
-        return GetAvailableMatchingPredicateNear(multirotorPredicate, location);
+        return ExtractAvailableMatchingPredicateNear(multirotorPredicate, location);
+    }
+    
+    public List<UAV> ExtractUpToNearMatching(int maxDrones, Location3D location, Predicate predicate) {
+        List<UAV> allAvailableNear = GetAllMatchingPredicate(predicate);
+        
+        if(allAvailableNear.size() < maxDrones) return allAvailableNear;
+        
+        List<UAV> closest = new ArrayList<>();
+        while(allAvailableNear.size() > 0 && closest.size() <= maxDrones) {
+            UAV nextClosestDrone = ExtractClosestFromList(allAvailableNear, location);
+            closest.add(nextClosestDrone);
+            store.remove(nextClosestDrone);
+        }
+        
+        return closest;
+    }
+    
+    public List<UAV> ExtractUpToMultiNear(int maxDrones, Location3D location) {
+        return ExtractUpToNearMatching(maxDrones, location, multirotorPredicate);
+    }
+    
+    public List<UAV> ExtractUpToFixedNear(int maxDrones, Location3D location) {
+        return ExtractUpToNearMatching(maxDrones, location, fixedWingPredicate);
+    }
+    
+    public void Clean() {
+        ExtractAvailableMatchingPredicate(nonIdlePredicate);
     }
     
     public int Size() {

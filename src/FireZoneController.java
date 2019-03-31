@@ -25,10 +25,9 @@ public class FireZoneController {
     private List<Location3D> estimatedHazardZone = new ArrayList<>();
     private List<Long> hazardZoneTimes = new ArrayList<>();
 
-    private int QuadCount = 0;
-
     private Location3D center = null;
     private float averageDistance = -1; //this is actually the square of the average distance
+    private int targetQuadCount = 1;
 
     public FireZoneController(Main main, Location3D firstContact, List<Long> committedUAVS) {
         this.main = main;
@@ -41,47 +40,65 @@ public class FireZoneController {
                 main.getUAV(ID).fireZoneController = this;
 
                 main.getUAV(ID).FollowEdge(true);
-                QuadCount++;
                 break;
             }
         }
 
         //System.out.println(main.getUAVMap());
 
-        FindQuads(1);
+        FindQuads(1, firstContact);
 
         zoneIDCounter++;
         zoneID = zoneIDCounter;
     }
 
-    public void FindQuads (int quads) {
-        for (UAV uav : main.getUAVMap().values()) {
-                if ((!uav.fixedWing) &&  (uav.currentTask == UAVTASKS.NO_TASK || uav.currentTask == UAVTASKS.STANDBY)) {
-                    if (quads > QuadCount) {
-                        UAVMap.put(uav.airVehicleState.getID(), uav);
-                        uav.fireZoneController = this;
-                        ChaseFire(uav);
-                    } else {
-                        break;
-                    }
-                }
-            }
-
+    public void FindQuads (int quads, Location3D near) {
+        List<UAV> availableQuads = main.getDroneStore().ExtractUpToMultiNear(quads, near);
+        for (UAV uav : availableQuads) {
+            RequisitionUav(uav);
+            System.out.println("FireZoneController.FindQuads() requisitioned " + uav.airVehicleState.getID());
+        }
+    }
+    
+    private void RequisitionUav(UAV uav){
+        UAVMap.put(uav.airVehicleState.getID(), uav);
+        uav.fireZoneController = this;
+        ChaseFire(uav);
     }
 
     public void ChaseFire(UAV uav) {
         uav.currentTask = UAVTASKS.CHASING_FIRE;
 
         List<Waypoint> target = new ArrayList<>();
-        target.add(uav.CreateWaypoint(estimatedHazardZone.get(0).getLatitude(), estimatedHazardZone.get(0).getLongitude(),  700, AltitudeType.MSL, main.getNextWaypointID(),  30, TurnType.FlyOver));
+        target.add(uav.CreateWaypoint(estimatedHazardZone.get(0).getLatitude(), estimatedHazardZone.get(0).getLongitude(),  uav.targetHeight, AltitudeType.MSL, main.getNextWaypointID(),  30, TurnType.FlyOver));
 
         uav.MoveToWayPoint(target.get(0));
     }
 
+    public void RequisitionUpToMaxDrones(){
+        // clear out any drones not mapping fire
+        for(UAV hazardUav : UAVMap.values()) {
+            if(hazardUav.currentTask != UAVTASKS.CHASING_FIRE
+            && hazardUav.currentTask != UAVTASKS.FOLLOW_EDGE_CLOCKWISE
+            && hazardUav.currentTask != UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE){
+               UAVMap.remove(hazardUav.airVehicleState.getID());
+               main.getDroneStore().AddToStore(hazardUav);
+            }
+        }
+        
+        // Try and requisition up to our target drone count
+        int quadShortage = targetQuadCount - UAVMap.size();
+        if(quadShortage > 0) {
+            for(UAV uav : main.getDroneStore().ExtractUpToMultiNear(quadShortage, estimatedHazardZone.get(estimatedHazardZone.size() - 1))){
+                RequisitionUav(uav);
+            }
+        }
+        // TODO remove if too many? Or maybe add function to be able to offer drones back to the store if they're needed elsewhere
+    }
 
-    public void HandleHazardZoneDetection(HazardZoneDetection msg) {
+    public void HandleHazardZoneDetection(HazardZoneDetection msg) {        
         UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
-
+        
         if (uav.fixedWing) {
             if (!uav.HasSeenFire()) {
                 AddHazardZonePoint(msg.getDetectedLocation());
