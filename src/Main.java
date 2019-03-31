@@ -10,10 +10,13 @@
 // This file was auto-created by LmcpGen. Modifications will be overwritten.
 
 import afrl.cmasi.*;
+import afrl.cmasi.perceive.EntityPerception;
 import afrl.cmasi.searchai.HazardZoneDetection;
 import afrl.cmasi.searchai.RecoveryPoint;
 import avtas.lmcp.LMCPFactory;
 import avtas.lmcp.LMCPObject;
+
+import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -45,6 +48,7 @@ public class Main extends Thread {
     private long waypointID = 0;
 
     private Map<Long, UAV> UAVMap = new HashMap<>();
+    private Map<Long, UAVTASKS> UAVTasks = new HashMap<>();
 
     private List<FireZoneController> hazardZones = new ArrayList<>();
 
@@ -96,40 +100,58 @@ public class Main extends Thread {
         } else if (o instanceof AirVehicleState) {
             AirVehicleState msg = (AirVehicleState) o;
             UAVMap.get(msg.getID()).airVehicleState = msg;
+
+            UAV uav = UAVMap.get(msg.getID());
+
+            Point2D pos = fireMap.Location3DToCoord(uav.airVehicleState.getLocation());
+
+            if (pos.getX() < 50 || pos.getX() > fireMap.width - 50 || pos.getY() < 50 || pos.getY() > fireMap.height - 50) {
+                uav.InitRefuelMission();
+            }
+
             fireMap.HandleAirVehicleState(msg);
 
         } else if (o instanceof SessionStatus) {
             SessionStatus msg = (SessionStatus) o;
             time = msg.getScenarioTime();
 
+            for (FireZoneController FZC : hazardZones) {
+                FZC.FindQuads(1);
+            }
+
             for (UAV uav : UAVMap.values()) {
                 uav.Update();
             }
 
-            for (int i = hazardZones.size() - 1; i >= 0; --i) {
-                for (int j = i - 1; j >= 0; --j) {
-                    if (hazardZones.get(j).CheckAndMerge(hazardZones.get(i))) {
-                        System.out.println("Merged one");
-                        hazardZones.remove(i);
-                    }
-                }
-            }
+            UAVTaskOutput();
 
         } else if (o instanceof AirVehicleConfiguration) {
             UAVMap.put(((AirVehicleConfiguration) o).getID(), new UAV( this, (AirVehicleConfiguration) o));
+            UAVTasks.put(((AirVehicleConfiguration) o).getID(), UAVTASKS.NO_TASK);
 
         } else if (o instanceof HazardZoneDetection) {
             HazardZoneDetection msg = ((HazardZoneDetection) o);
             Location3D detectedLocation = msg.getDetectedLocation();
 
-            if (UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController == null) {
-                List<Long> UAVS = new ArrayList<>();
-                UAVS.add(msg.getDetectingEnitiyID());
+            UAV uav = UAVMap.get(msg.getDetectingEnitiyID());
 
-                hazardZones.add(new FireZoneController(this, detectedLocation, UAVS));
-            } else {
-                UAVMap.get(msg.getDetectingEnitiyID()).fireZoneController.HandleHazardZoneDetection(msg);
+            if ((!uav.fixedWing || (!uav.HasSeenFire() && uav.currentTask != UAVTASKS.FLYTHROUGH)) && uav.currentTask != UAVTASKS.REFUEL) {
+                if (uav.fireZoneController == null) {
+
+                    List<Long> UAVS = new ArrayList<>();
+                    UAVS.add(msg.getDetectingEnitiyID());
+
+                    hazardZones.add(new FireZoneController(this, detectedLocation, UAVS));
+                    if (uav.fixedWing) {
+                        uav.currentTask = UAVTASKS.FLYTHROUGH;
+                        uav.fireZoneController = hazardZones.get(hazardZones.size() - 1);
+                    }
+                } else {
+                    uav.fireZoneController.HandleHazardZoneDetection(msg);
+                }
             }
+
+            uav.SawFire();
         }
         else if (o instanceof RecoveryPoint) {
             RecoveryPoint recoveryPoint = (RecoveryPoint)o;
@@ -137,6 +159,9 @@ public class Main extends Thread {
             for (UAV uav : UAVMap.values()) {
                 uav.refuelPoints.add(center);
             }
+        }
+        else if (o instanceof EntityPerception) {
+            //Stop the spam
         }
         else {
             System.out.println("Unhandled Message: " + o.getLMCPTypeName());
@@ -173,6 +198,19 @@ public class Main extends Thread {
 
     public FireMap getFireMap() {
         return fireMap;
+    }
+
+    public List<FireZoneController> getHazardZones() {
+        return hazardZones;
+    }
+
+    public void UAVTaskOutput() {
+        for (UAV uav : UAVMap.values()) {
+            if (uav.currentTask != UAVTasks.get(uav.airVehicleState.getID())) {
+                System.out.printf("UAV ID %d, %s, Task %s\n", uav.airVehicleState.getID(), uav.fixedWing ? "Fixed" : "Multi", uav.currentTask.toString());
+                UAVTasks.put(uav.airVehicleState.getID(), uav.currentTask);
+            }
+        }
     }
 
     /** tries to connect to the server.  If there is a problem (such as the server not running yet) it

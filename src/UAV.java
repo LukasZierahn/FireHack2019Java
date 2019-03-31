@@ -2,6 +2,9 @@ import afrl.cmasi.*;
 import java.util.ArrayList;
 
 import java.util.List;
+import sun.jvm.hotspot.debugger.cdbg.ClosestSymbol;
+
+import static java.lang.Math.random;
 
 
 public class UAV {
@@ -11,8 +14,7 @@ public class UAV {
 
     public FireZoneController fireZoneController = null;
     public UAVTASKS currentTask = UAVTASKS.NO_TASK;
-    protected boolean sawFire = false;
-    protected long lastSwitch = 0;
+    protected long lastSeenFire = 0;
     public Location3D standbyPoint;
 
     protected Main main;
@@ -26,9 +28,12 @@ public class UAV {
     protected FuelState fuelState = new FuelState();
     protected ArrayList<Location3D> refuelPoints = new ArrayList<>();
 
+    private boolean start = true;
+
     public UAV(Main main, AirVehicleConfiguration airVehicleConfiguration) {
         this.main = main;
         this.airVehicleConfiguration = airVehicleConfiguration;
+        currentTask = UAVTASKS.NO_TASK;
 
         switch (airVehicleConfiguration.getEntityType()) {
             case "":
@@ -38,13 +43,14 @@ public class UAV {
                 fixedWing = false;
                 nr = main.fixedWings;
                 main.fixedWings++;
-                targetSpeed = 20;
+                targetSpeed = 25;
                 break;
             case "FixedWing":
                 fixedWing = true;
                 nr = main.multi;
                 main.multi++;
-                targetSpeed = 30;
+                targetSpeed = 40;
+                targetHeight = 1500;
                 break;
             default:
                 System.out.println("Unexpected entity type: " + airVehicleConfiguration.getEntityType());
@@ -55,6 +61,11 @@ public class UAV {
     }
 
     public void Update() {
+
+        if(start) {
+            RandomMovement();
+        }
+
         if(UpdateFuel()) {
             if(refuelPoints.isEmpty()) {
                 System.out.println("WARNING - Drone needs fuel but has no refuel position");
@@ -74,19 +85,60 @@ public class UAV {
         
         if (currentTask == UAVTASKS.FOLLOW_EDGE_CLOCKWISE || currentTask == UAVTASKS.FOLLOW_EDGE_COUNTER_CLOCKWISE) {
             UpdateFollow();
+
         } else if (currentTask == UAVTASKS.FLYTHROUGH) {
-            if (!sawFire) {
+            if (!HasSeenFire()) {
                 currentTask = UAVTASKS.NO_TASK;
+                fireZoneController.AddHazardZonePoint(airVehicleState.getLocation(), true);
+                fireZoneController = null;
                 //TODO:Ask the fire zone controller to give us a new job
+
             }
-        } else if (currentTask == UAVTASKS.NO_TASK) {
+        } /*else if (currentTask == UAVTASKS.NO_TASK) {
             if (fireZoneController == null) {
                 main.getFireMap().getTask(this);
+            } else {
+                RandomMovement();
             }
+        }*/
+    }
+
+    public void RandomMovement() {
+        FlightDirectorAction msg = new FlightDirectorAction();
+        msg.setSpeed(targetSpeed);
+        msg.setAltitudeType(AltitudeType.MSL);
+        msg.setAltitude(700);
+        msg.setClimbRate(0);
+
+        msg.setHeading(airVehicleState.getHeading() + 360 * (float)random());
+
+        MissionCommand o = new MissionCommand();
+        o.setVehicleID(airVehicleState.getID());
+        o.setCommandID(main.getNextCommandID());
+        o.getVehicleActionList().add(msg);
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
+        start = false;
     }
 
     public void InitRefuelMission() {
+        
+        Location3D closest = ClosestRefuelStation();
+
+        List<Waypoint> targets = new ArrayList<Waypoint>();
+        long wpID = main.getNextWaypointID();
+        Waypoint wp = CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort);
+        targets.add(wp);
+        
+        MoveToWayPoint(targets, wpID);
+    }
+    
+    private Location3D ClosestRefuelStation(){
         Location3D closest = null;
         double minDist = Double.MAX_VALUE;
         for(Location3D pos : refuelPoints) {
@@ -96,25 +148,7 @@ public class UAV {
                 closest = pos;
             }
         }
-
-        List<Waypoint> targets = new ArrayList<Waypoint>();
-        long wpID = main.getNextWaypointID();
-        targets.add(CreateWaypoint(closest.getLatitude(), closest.getLongitude(), targetHeight, AltitudeType.MSL, wpID, targetSpeed, TurnType.TurnShort));
-        MoveToWayPoint(targets, wpID);
-        
-        /*LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
-        LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 1000, targetSpeed, closest);
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        o.getVehicleActionList().add(loiterAction);
-
-
-        try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }*/
+        return closest;
     }
     
     /**
@@ -122,19 +156,31 @@ public class UAV {
      * @return True if the aircraft needs refuel, false otherwise
      */
     public boolean UpdateFuel() {
-        fuelState.Update(airVehicleState);
+        fuelState.Update(airVehicleState, this, ClosestRefuelStation());
         return fuelState.requiresRefuel;
     }
 
-
     public void MoveToWayPoint(List<Waypoint> route, long startID) {
+        MissionCommand o = WrapInMission(route, startID);
         currentTask = UAVTASKS.PATROL;
 
-        MissionCommand o = new MissionCommand();
-        o.setVehicleID(airVehicleState.getID());
-        o.setCommandID(main.getNextCommandID());
-        o.getWaypointList().addAll(route);
-        o.setFirstWaypoint(startID);
+        GimbalScanAction cameraMsg = new GimbalScanAction();
+        cameraMsg.setPayloadID(1);
+        cameraMsg.setCycles(0);
+
+        cameraMsg.setStartElevation(-20);
+        cameraMsg.setEndElevation(-20);
+
+        cameraMsg.setStartAzimuth(-90);
+        cameraMsg.setEndAzimuth(90);
+
+        cameraMsg.setAzimuthSlewRate(50);
+
+        //o.getVehicleActionList().add(cameraMsg);
+
+        for (Waypoint wp : route) {
+            wp.getVehicleActionList().add(cameraMsg);
+        }
 
         try {
             main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
@@ -143,17 +189,46 @@ public class UAV {
         }
     }
 
-    public void MoveToWayPoint(Waypoint route) {
-        currentTask = UAVTASKS.PATROL;
-
+    public MissionCommand WrapInMission(List<Waypoint> route, long startID) {
         MissionCommand o = new MissionCommand();
         o.setVehicleID(airVehicleState.getID());
         o.setCommandID(main.getNextCommandID());
-        o.getWaypointList().add(route);
-        o.setFirstWaypoint(route.getNumber());
+        o.getWaypointList().addAll(route);
+        o.setFirstWaypoint(startID);
+        return o;
+    }
+
+    public void MoveToWayPoint(Waypoint route) {
+        ArrayList<Waypoint> routeWrapper = new ArrayList<Waypoint>();
+        routeWrapper.add(route);
+        MoveToWayPoint(routeWrapper, route.getNumber());
+    }
+
+    public void LoiterHere() {
+        LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
+        LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 35000, targetSpeed, airVehicleState.getLocation());
+        VehicleActionCommand vehAction = new VehicleActionCommand(main.getNextCommandID(), airVehicleState.getID(), CommandStatusType.Pending);
+        vehAction.getVehicleActionList().add(loiterAction);
 
         try {
-            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(o, true));
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(vehAction, true));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void LoiterAtPoint(Waypoint route, Location3D loiterPoint) {
+        LoiterType loiterType = fixedWing ? LoiterType.Circular : LoiterType.Hover;
+        LoiterAction loiterAction = CreateLoiter(loiterType, 200, 0, 0, LoiterDirection.Clockwise, 35000, targetSpeed, loiterPoint);
+
+        List<Waypoint> routeWrapper = new ArrayList<Waypoint>();
+        routeWrapper.add(route);
+
+        MissionCommand mission = WrapInMission(routeWrapper, route.getNumber());
+        mission.getVehicleActionList().add(loiterAction);
+
+        try {
+            main.getOut().write(avtas.lmcp.LMCPFactory.packMessage(mission, true));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -176,7 +251,7 @@ public class UAV {
         }
     }
 
-    private Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
+    public Waypoint CreateWaypoint(double lat, double lon, float altitude, AltitudeType altType, long number, float speed, TurnType turnType) {
         Waypoint waypoint1 = new Waypoint();
         waypoint1.setLatitude(lat);
         waypoint1.setLongitude(lon);
@@ -285,7 +360,7 @@ public class UAV {
             final float inFire = 12;
             final float notInFire = 5;
 
-            if (sawFire) {
+            if (HasSeenFire()) {
                 if (clockwise) {
                     msg.setHeading(airVehicleState.getHeading() - inFire);
                 } else {
@@ -304,7 +379,7 @@ public class UAV {
             final float flatMove = 5;
             final float scale = (((GimbalState) airVehicleState.getPayloadStateList().get(0)).getAzimuth() - 45) / 45.0f;
 
-            if (sawFire) {
+            if (HasSeenFire()) {
                 if (clockwise) {
                     msg.setHeading(airVehicleState.getHeading() + flatMove * scale);
                 } else {
@@ -329,18 +404,14 @@ public class UAV {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
-
-        sawFire = false;
-
     }
 
 
     public void SawFire() {
-        if (!sawFire) {
-            lastSwitch = main.getTime();
-        }
-        sawFire = true;
+        lastSeenFire = main.getTime();
+    }
+
+    public boolean HasSeenFire() {
+        return main.getTime() - lastSeenFire < 2000;
     }
 }

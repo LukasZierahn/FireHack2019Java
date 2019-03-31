@@ -14,7 +14,7 @@ public class FireMap {
 
     private Main main;
 
-    private int width, height;
+    public int width, height;
 
     private long data[];
     private boolean dataFire[];
@@ -23,6 +23,8 @@ public class FireMap {
 
     public Waypoint waypointCenter;
     public List<Waypoint> route = new ArrayList<>();
+    public List<Waypoint> route2 = new ArrayList<>();
+    public List<Waypoint> route3 = new ArrayList<>();
 
     public FireMap(Main main, KeepInZone msg) {
         this.main = main;
@@ -36,12 +38,12 @@ public class FireMap {
         waypointCenter = new Waypoint();
         waypointCenter.setLatitude(center.getLatitude());
         waypointCenter.setLongitude(center.getLongitude());
-        waypointCenter.setAltitude(700);
+        waypointCenter.setAltitude(800);
         waypointCenter.setAltitudeType(AltitudeType.MSL);
         //Setting unique ID for the waypoint
         waypointCenter.setNumber(main.getNextWaypointID());
         //Setting speed to reach the waypoint
-        waypointCenter.setSpeed(30);
+        waypointCenter.setSpeed(40);
         waypointCenter.setTurnType(TurnType.FlyOver);
         waypointCenter.setNextWaypoint(0);
 
@@ -52,15 +54,23 @@ public class FireMap {
         locations.add(CoordToLocation(new Point2D.Float(width * 0.75f, height * 0.75f)));
         locations.add(CoordToLocation(new Point2D.Float(width * 0.75f, height * 0.25f)));
 
+        List<Location3D> locations2 = new ArrayList<>();
+        locations2.add(CoordToLocation(new Point2D.Float(width * 0.80f, height * 0.80f)));
+        locations2.add(CoordToLocation(new Point2D.Float(width * 0.20f, height * 0.20f)));
+
+        List<Location3D> locations3 = new ArrayList<>();
+        locations3.add(CoordToLocation(new Point2D.Float(width * 0.20f, height * 0.80f)));
+        locations3.add(CoordToLocation(new Point2D.Float(width * 0.80f, height * 0.20f)));
+
         for (int i = 0; i < 4; i++) {
             Waypoint nextWaypoint = new Waypoint();
             Location3D location = locations.get(i);
             nextWaypoint.setLatitude(location.getLatitude());
             nextWaypoint.setLongitude(location.getLongitude());
-            nextWaypoint.setAltitude(700);
+            nextWaypoint.setAltitude(800);
             nextWaypoint.setAltitudeType(AltitudeType.MSL);
             nextWaypoint.setNumber(main.getNextWaypointID());
-            nextWaypoint.setSpeed(30);
+            nextWaypoint.setSpeed(40);
             nextWaypoint.setTurnType(TurnType.FlyOver);
             route.add(nextWaypoint);
         }
@@ -70,7 +80,37 @@ public class FireMap {
         }
         route.get(3).setNextWaypoint(route.get(0).getNumber());
 
-        //System.out.printf("Created map with %d/%d\n", width, height);
+        for (int i = 0; i < 4; i++) {
+            Waypoint nextWaypoint = new Waypoint();
+            nextWaypoint.setAltitude(800);
+            nextWaypoint.setAltitudeType(AltitudeType.MSL);
+            nextWaypoint.setNumber(main.getNextWaypointID());
+            nextWaypoint.setSpeed(40);
+            nextWaypoint.setTurnType(TurnType.FlyOver);
+
+            Location3D location;
+            if (i < 2) {
+                location = locations2.get(i);
+                nextWaypoint.setLatitude(location.getLatitude());
+                nextWaypoint.setLongitude(location.getLongitude());
+                route2.add(nextWaypoint);
+            } else {
+                location = locations3.get(i - 2);
+                nextWaypoint.setLatitude(location.getLatitude());
+                nextWaypoint.setLongitude(location.getLongitude());
+                route3.add(nextWaypoint);
+            }
+
+        }
+
+        route2.get(0).setNextWaypoint(route2.get(1).getNumber());
+        route2.get(1).setNextWaypoint(route2.get(0).getNumber());
+
+        route3.get(0).setNextWaypoint(route3.get(1).getNumber());
+        route3.get(1).setNextWaypoint(route3.get(0).getNumber());
+
+
+    //System.out.printf("Created map with %d/%d\n", width, height);
     }
 
     public void HandleAirVehicleState(AirVehicleState msg) {
@@ -87,10 +127,20 @@ public class FireMap {
 
     public void getTask(UAV uav) {
         if (uav.fixedWing) {
-            uav.MoveToWayPoint(route, route.get(uav.nr).getNumber());
+            if (uav.nr == 0) {
+                uav.MoveToWayPoint(route, route.get(1).getNumber());
+            } else if (uav.nr == 1) {
+                uav.MoveToWayPoint(route, route.get(3).getNumber());
+            } else if (uav.nr == 2) {
+                uav.MoveToWayPoint(route2, route2.get(0).getNumber());
+            } else if (uav.nr == 3) {
+                uav.MoveToWayPoint(route3, route3.get(0).getNumber());
+            } else {
+                uav.InitRefuelMission();
+            }
         } else {
-            uav.currentTask = UAVTASKS.STANDBY;
-            uav.standbyPoint = center;
+            //uav.currentTask = UAVTASKS.STANDBY;
+           //uav.standbyPoint = center;
         }
 
     }
