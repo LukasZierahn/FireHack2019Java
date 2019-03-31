@@ -110,11 +110,17 @@ public class FireZoneController {
                 AddHazardZonePoint(msg.getDetectedLocation(), msg.getDetectingEnitiyID());
             }
         } else {
-            AddHazardZonePoint(msg.getDetectedLocation(), msg.getDetectingEnitiyID());
-            SendInHazardZone();
+            if (uav.currentTask != UAVTASKS.CHASING_FIRE) {
+                AddHazardZonePoint(msg.getDetectedLocation(), msg.getDetectingEnitiyID());
+                SendInHazardZone();
+            }
 
             if (uav.currentTask == UAVTASKS.CHASING_FIRE) {
-                uav.FollowEdge(true);
+                if (0.00002 > distance(uav.airVehicleState.getLocation(), estimatedHazardZone.get(0).location)) {
+                    uav.FollowEdge(true);
+                } else {
+                    ChaseFire(uav);
+                }
             } else {
                 float mean = 0;
 
@@ -123,16 +129,16 @@ public class FireZoneController {
                 }
                 mean = mean / getHazardZoneByDrones().size();
 
-                if (getHazardZoneByDrones().get(msg.getDetectingEnitiyID()).size() >= mean) {
+                if (getHazardZoneByDrones().get(msg.getDetectingEnitiyID()).size() > mean) {
                     uav.targetSpeed = 10 + (10 / (1.0f * getHazardZoneByDrones().get(msg.getDetectingEnitiyID()).size() - mean));
-
+                } else {
+                    uav.targetSpeed = 20;
                 }
             }
         }
     }
 
     public void SendInHazardZone() {
-
         Polygon polygon = new Polygon();
         for (List<EstimatePoint> listToCheck : getHazardZoneByDrones().values()) {
             for (int i = 0; i < listToCheck.size(); i++) {

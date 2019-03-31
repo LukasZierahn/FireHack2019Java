@@ -178,12 +178,16 @@ public class Main extends Thread {
         else if (o instanceof KeepOutZone) {
             KeepOutZone z = (KeepOutZone)o;
             ArrayList<Location3D> locs = new ArrayList<Location3D>();
-            if(z.getBoundary() instanceof Rectangle){
-                locs.add(((Rectangle)z.getBoundary()).getCenterPoint());
-            } else {
-                locs.add(((Circle)z.getBoundary()).getCenterPoint());
+            if(z.getBoundary() instanceof Rectangle) {
+                locs.add(((Rectangle) z.getBoundary()).getCenterPoint());
             }
-            routeManager.AddRoute(new Route(locs, 40, TurnType.FlyOver));
+            else if(z.getBoundary() instanceof Circle) {
+                    locs.add(((Circle) z.getBoundary()).getCenterPoint());
+            } else {
+                locs.add(((Polygon)z.getBoundary()).getBoundaryPoints().get(0));
+            }
+
+            //routeManager.AddRoute(new Route(locs, 40, TurnType.FlyOver));
         }
         else {
             System.out.println("Unhandled Message: " + o.getLMCPTypeName());

@@ -13,10 +13,13 @@ public class Route {
     private List<Waypoint> waypoints = new ArrayList<Waypoint>();
     private long lastAssigned;
     private long lastRelased;
+    public long scoreOffset = 0;
     private List<UAV> activeDrones = new ArrayList<UAV>();
     
     public Route(List<Location3D> locations, float speed, TurnType turnType) {
         for(Location3D location : locations) {
+
+            location.setAltitude(700);
             waypoints.add(
                 Route.CreateWaypoint(
                     location.getLatitude(),
@@ -83,7 +86,7 @@ public class Route {
     }
     
     public long UrgencyScore(Main main) {
-        long score = (main.getTime() - lastAssigned);
+        long score = (main.getTime() - lastAssigned) + scoreOffset;
         if(waypoints.size() == 1) score += 200;
         return score - activeDrones.size();
     }
