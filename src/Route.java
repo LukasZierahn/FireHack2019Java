@@ -29,7 +29,6 @@ public class Route {
                 ));
         }
         
-        System.out.println("Route.<init>()");
         //join up the waypoints in a 
         for(int i = 0; i < waypoints.size(); i++){
             Waypoint waypoint = waypoints.get(i);
@@ -83,7 +82,6 @@ public class Route {
     
     public long UrgencyScore(Main main) {
         long score = (main.getTime() - lastAssigned);
-        System.out.println("Route.UrgencyScore() " + activeDrones.size());
         return score - activeDrones.size();
     }
 }
