@@ -215,6 +215,8 @@ public class FireZoneController {
                     RemoveHazardZonePoint(listToCheck.get(0));
                 }
 
+
+
                 boolean changed = true;
                 while (changed) {
                     changed = false;
