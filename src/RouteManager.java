@@ -59,7 +59,6 @@ public class RouteManager {
         long topScore = -999999999;
         for(Route route : routes) {
             long urgency = route.UrgencyScore(main);
-            System.out.println("RouteManager.GetNextRouteFor() " + urgency);
             if(urgency > topScore) {
                 topScore = urgency;
                 maxRoute = route;
