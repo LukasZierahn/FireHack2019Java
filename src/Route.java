@@ -44,7 +44,7 @@ public class Route {
         for(Waypoint waypoint : waypoints) {
             waypoint.setSpeed(uav.targetSpeed);
         }
-        uav.MoveToWayPoint(waypoints, waypoints.get(0).getNumber());
+        uav.MoveToWayPoint(waypoints, waypoints.get((int)(Math.random() * waypoints.size())).getNumber());
         activeDrones.add(uav);
         lastAssigned = main.getTime();
     }
@@ -58,8 +58,10 @@ public class Route {
     }
     
     public void UnassignDrone(UAV uav, Main main) {
-        lastRelased = main.getTime();
-        activeDrones.add(uav);
+        if(activeDrones.contains(uav)) {
+            activeDrones.remove(uav);
+            lastRelased = main.getTime();
+        }
     }
     
     public boolean DroneOnRoute(UAV uav) {
@@ -82,6 +84,7 @@ public class Route {
     
     public long UrgencyScore(Main main) {
         long score = (main.getTime() - lastAssigned);
+        if(waypoints.size() == 1) score += 200;
         return score - activeDrones.size();
     }
 }

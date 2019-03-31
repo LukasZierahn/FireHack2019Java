@@ -27,6 +27,7 @@ public class RouteManager {
         routes.add(CreateSquareRoute(0.3f));
         routes.add(CreateSquareRoute(0.35f));
         routes.add(CreateSquareRoute(0.4f));
+        routes.add(CreateSquareRoute(0.48f));
     }
     
     private Route CreateSquareRoute(float scale) {
