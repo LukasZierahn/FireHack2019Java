@@ -114,6 +114,8 @@ public class FireMap {
     }
 
     public void HandleAirVehicleState(AirVehicleState msg) {
+        if(msg.getPayloadStateList().size() < 3) return; // some air veh state have no payload states?
+        System.out.println();
         if (((HazardSensorState)msg.getPayloadStateList().get(2)).getCenterpoint() != null) {
             Point2D coords = Location3DToCoord(((HazardSensorState) msg.getPayloadStateList().get(2)).getCenterpoint());
             setPoint(coords, false);

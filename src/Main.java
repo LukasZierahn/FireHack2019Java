@@ -187,7 +187,7 @@ public class Main extends Thread {
                 locs.add(((Polygon)z.getBoundary()).getBoundaryPoints().get(0));
             }
 
-            //routeManager.AddRoute(new Route(locs, 40, TurnType.FlyOver));
+            routeManager.AddRoute(new Route(locs, 40, TurnType.FlyOver));
         }
         else {
             System.out.println("Unhandled Message: " + o.getLMCPTypeName());
